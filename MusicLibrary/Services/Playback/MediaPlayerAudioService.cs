@@ -1,4 +1,4 @@
-using MusicLibrary.Models;
+using MusicBakh.Core.Domain;
 using System.Windows.Media;
 
 namespace MusicLibrary.Services.Playback;

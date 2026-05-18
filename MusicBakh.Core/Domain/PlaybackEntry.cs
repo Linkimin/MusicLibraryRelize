@@ -1,4 +1,4 @@
-namespace MusicLibrary.Models;
+namespace MusicBakh.Core.Domain;
 
 /// <summary>
 /// Запись истории прослушиваний: какой трек был запущен и в какой момент.

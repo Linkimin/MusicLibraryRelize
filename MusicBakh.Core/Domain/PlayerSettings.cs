@@ -1,6 +1,4 @@
-using MusicLibrary.Models;
-
-namespace MusicLibrary.Services.Storage;
+namespace MusicBakh.Core.Domain;
 
 /// <summary>
 /// Снимок настроек плеера, сохраняемый между запусками приложения.

@@ -1,3 +1,5 @@
+using MusicBakh.Core.Domain;
+
 namespace MusicLibrary.Models;
 
 /// <summary>

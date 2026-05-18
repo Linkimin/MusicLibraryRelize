@@ -1,4 +1,4 @@
-namespace MusicLibrary.Models;
+namespace MusicBakh.Core.Domain;
 
 public enum OperationMessageKind
 {

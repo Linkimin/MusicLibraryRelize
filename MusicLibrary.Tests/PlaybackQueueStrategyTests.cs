@@ -1,4 +1,4 @@
-using MusicLibrary.Models;
+using MusicBakh.Core.Domain;
 using MusicLibrary.Services.Playback;
 
 namespace MusicLibrary.Tests;
