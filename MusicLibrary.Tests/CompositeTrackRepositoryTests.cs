@@ -1,3 +1,4 @@
+using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
 using MusicLibrary.Models;
 using MusicLibrary.Services.Storage;
@@ -8,13 +9,13 @@ namespace MusicLibrary.Tests;
 public sealed class CompositeTrackRepositoryTests
 {
     [Fact]
-    public void GetTracks_MergesBuiltInAndUserTracks()
+    public void GetAll_MergesBuiltInAndUserTracks()
     {
         var builtIn = new FakeRepo(new Track { Id = 1, Title = "A", Genre = "Rock" });
         var storage = new FakeStorage(new UserTrack { Id = 5, Title = "User", Genre = "Pop", DurationSeconds = 100, FilePath = "u.mp3", CoverPath = "u.png" });
         var composite = new CompositeTrackRepository(builtIn, storage);
 
-        IReadOnlyList<Track> all = composite.GetTracks();
+        IReadOnlyList<Track> all = composite.GetAll();
 
         Assert.Equal(2, all.Count);
         Assert.Equal("A", all[0].Title);
@@ -23,7 +24,7 @@ public sealed class CompositeTrackRepositoryTests
     }
 
     [Fact]
-    public void GetTracks_ReassignsConflictingIds()
+    public void GetAll_ReassignsConflictingIds()
     {
         var builtIn = new FakeRepo(
             new Track { Id = 1, Title = "Built1" },
@@ -32,7 +33,7 @@ public sealed class CompositeTrackRepositoryTests
             new UserTrack { Id = 1, Title = "Conflict", DurationSeconds = 1, FilePath = "x", CoverPath = "y" });
         var composite = new CompositeTrackRepository(builtIn, storage);
 
-        IReadOnlyList<Track> all = composite.GetTracks();
+        IReadOnlyList<Track> all = composite.GetAll();
 
         Assert.Equal(3, all.Count);
         Track conflict = all[2];
@@ -41,7 +42,7 @@ public sealed class CompositeTrackRepositoryTests
     }
 
     [Fact]
-    public void GetTracks_DeduplicatesUserIdsAmongThemselves()
+    public void GetAll_DeduplicatesUserIdsAmongThemselves()
     {
         var builtIn = new FakeRepo(new Track { Id = 1 });
         var storage = new FakeStorage(
@@ -49,7 +50,7 @@ public sealed class CompositeTrackRepositoryTests
             new UserTrack { Id = 2, Title = "Second", DurationSeconds = 1, FilePath = "f2", CoverPath = "c2" });
         var composite = new CompositeTrackRepository(builtIn, storage);
 
-        IReadOnlyList<Track> all = composite.GetTracks();
+        IReadOnlyList<Track> all = composite.GetAll();
 
         var ids = all.Select(t => t.Id).ToHashSet();
         Assert.Equal(3, ids.Count);
@@ -59,7 +60,10 @@ public sealed class CompositeTrackRepositoryTests
     {
         private readonly Track[] _tracks;
         public FakeRepo(params Track[] tracks) => _tracks = tracks;
-        public IReadOnlyList<Track> GetTracks() => _tracks;
+        public IReadOnlyList<Track> GetAll() => _tracks;
+        public Track? FindById(int id) => _tracks.FirstOrDefault(t => t.Id == id);
+        public Track Add(Track track) => throw new NotSupportedException();
+        public void Remove(int id) => throw new NotSupportedException();
     }
 
     private sealed class FakeStorage : IUserTrackStorage

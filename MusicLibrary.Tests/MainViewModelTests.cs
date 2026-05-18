@@ -1,8 +1,8 @@
+using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
 using MusicLibrary.Services.Files;
 using MusicLibrary.Services.Playback;
 using MusicLibrary.Services.Storage;
-using MusicLibrary.Services.Tracks;
 using MusicLibrary.ViewModels;
 using System.IO;
 using System.Reflection;
@@ -746,7 +746,10 @@ public sealed class MainViewModelTests
             _tracks = tracks;
         }
 
-        public IReadOnlyList<Track> GetTracks() => _tracks;
+        public IReadOnlyList<Track> GetAll() => _tracks;
+        public Track? FindById(int id) => _tracks.FirstOrDefault(t => t.Id == id);
+        public Track Add(Track track) => throw new NotSupportedException();
+        public void Remove(int id) => throw new NotSupportedException();
     }
 
     private sealed class FakeFileService : IFileService

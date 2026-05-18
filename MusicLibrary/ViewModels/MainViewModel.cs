@@ -1,10 +1,10 @@
 using MusicLibrary.Commands;
+using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
 using MusicLibrary.Models;
 using MusicLibrary.Services.Files;
 using MusicLibrary.Services.Playback;
 using MusicLibrary.Services.Storage;
-using MusicLibrary.Services.Tracks;
 using MusicLibrary.Views;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -61,7 +61,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _confirmationService = confirmationService;
         _playerSettingsStorage = playerSettingsStorage;
 
-        _allTracks = new List<Track>(trackRepository.GetTracks());
+        _allTracks = new List<Track>(trackRepository.GetAll());
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
         PlaybackHistory = new ObservableCollection<PlaybackEntry>();
         Genres = new ObservableCollection<string>(

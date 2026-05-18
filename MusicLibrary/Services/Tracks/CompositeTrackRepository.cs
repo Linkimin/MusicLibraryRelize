@@ -1,3 +1,4 @@
+using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
 using MusicLibrary.Models;
 using MusicLibrary.Services.Storage;
@@ -22,9 +23,9 @@ public sealed class CompositeTrackRepository : ITrackRepository
         _storage = storage;
     }
 
-    public IReadOnlyList<Track> GetTracks()
+    public IReadOnlyList<Track> GetAll()
     {
-        IReadOnlyList<Track> builtInTracks = _builtIn.GetTracks();
+        IReadOnlyList<Track> builtInTracks = _builtIn.GetAll();
         int nextId = builtInTracks.Count == 0 ? 1 : builtInTracks.Max(t => t.Id) + 1;
 
         var taken = new HashSet<int>(builtInTracks.Select(t => t.Id));
@@ -54,4 +55,12 @@ public sealed class CompositeTrackRepository : ITrackRepository
 
         return result;
     }
+
+    public Track? FindById(int id) => GetAll().FirstOrDefault(t => t.Id == id);
+
+    public Track Add(Track track) =>
+        throw new NotSupportedException("CompositeTrackRepository не поддерживает добавление в этой итерации.");
+
+    public void Remove(int id) =>
+        throw new NotSupportedException("CompositeTrackRepository не поддерживает удаление в этой итерации.");
 }
