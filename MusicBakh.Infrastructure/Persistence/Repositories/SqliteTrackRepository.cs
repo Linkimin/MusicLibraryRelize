@@ -45,6 +45,7 @@ public sealed class SqliteTrackRepository : ITrackRepository
         {
             Title = track.Title,
             Artist = track.Artist,
+            Album = track.Album,
             Genre = track.Genre,
             DurationTicks = track.Duration.Ticks,
             FilePath = track.FilePath,
@@ -79,6 +80,7 @@ public sealed class SqliteTrackRepository : ITrackRepository
         Id = e.Id,
         Title = e.Title,
         Artist = e.Artist,
+        Album = e.Album,
         Genre = e.Genre,
         Duration = TimeSpan.FromTicks(e.DurationTicks),
         FilePath = e.FilePath,

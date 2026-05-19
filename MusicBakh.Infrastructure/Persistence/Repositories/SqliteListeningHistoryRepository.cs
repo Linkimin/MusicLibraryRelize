@@ -34,6 +34,7 @@ public sealed class SqliteListeningHistoryRepository : IListeningHistoryReposito
                     Id = h.Track.Id,
                     Title = h.Track.Title,
                     Artist = h.Track.Artist,
+                    Album = h.Track.Album,
                     Genre = h.Track.Genre,
                     Duration = TimeSpan.FromTicks(h.Track.DurationTicks),
                     FilePath = h.Track.FilePath,

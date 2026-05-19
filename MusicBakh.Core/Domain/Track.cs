@@ -9,6 +9,7 @@ public sealed class Track
     public int Id { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Artist { get; init; } = string.Empty;
+    public string Album { get; init; } = string.Empty;
     public string Genre { get; init; } = string.Empty;
     public TimeSpan Duration { get; init; }
     public string FilePath { get; init; } = string.Empty;
