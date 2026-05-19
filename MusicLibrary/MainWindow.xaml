@@ -18,7 +18,12 @@
         <KeyBinding Key="Right" Modifiers="Control" Command="{Binding NextTrackCommand}" />
         <KeyBinding Key="M" Command="{Binding ToggleMuteCommand}" />
         <KeyBinding Key="R" Command="{Binding CycleRepeatModeCommand}" />
+        <!-- Ctrl+F фокусирует поле поиска. Обработка — в MainWindow.xaml.cs (UI-операция). -->
+        <KeyBinding Key="F" Modifiers="Control" Command="ApplicationCommands.Find" />
     </Window.InputBindings>
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Find" Executed="OnFindCommandExecuted" />
+    </Window.CommandBindings>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -52,6 +57,14 @@
 
             <Border Grid.Column="0" Background="#4D16161F" BorderBrush="{StaticResource GoldBorderBrush}" BorderThickness="0,0,1,0">
                 <DockPanel Margin="24">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                        <TextBlock Text="Поиск" Foreground="{StaticResource ForegroundBrush}" FontWeight="SemiBold" FontSize="18" Margin="0,0,0,10" />
+                        <TextBox x:Name="SearchBox"
+                                 Style="{StaticResource SearchTextBoxStyle}"
+                                 Tag="Название, исполнитель, альбом, жанр…   (Ctrl+F)"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
+                                 KeyDown="OnSearchBoxKeyDown" />
+                    </StackPanel>
                     <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
                         <TextBlock Text="Фильтр по жанру" Foreground="{StaticResource ForegroundBrush}" FontWeight="SemiBold" FontSize="18" Margin="0,0,0,10" />
                         <ComboBox ItemsSource="{Binding Genres}"

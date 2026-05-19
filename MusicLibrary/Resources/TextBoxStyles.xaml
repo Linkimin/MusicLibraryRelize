@@ -1,0 +1,60 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Тёмный TextBox для строки поиска. Плейсхолдер задаётся через Tag-свойство контрола,
+        что даёт один стиль на разные подсказки без дублирования шаблона. Активная рамка
+        подсвечивается золотым, как и остальные интерактивные элементы приложения.
+    -->
+    <Style x:Key="SearchTextBoxStyle" TargetType="TextBox">
+        <Setter Property="Background" Value="#4D16161F" />
+        <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
+        <Setter Property="CaretBrush" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="SelectionBrush" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource GoldBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="FontFamily" Value="{StaticResource BodyFont}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6">
+                        <Grid>
+                            <!-- Плейсхолдер: виден, когда нет текста и фокус не в контроле. -->
+                            <TextBlock x:Name="Placeholder"
+                                       Text="{TemplateBinding Tag}"
+                                       Foreground="{StaticResource MutedForegroundBrush}"
+                                       Margin="{TemplateBinding Padding}"
+                                       VerticalAlignment="Center"
+                                       IsHitTestVisible="False"
+                                       Visibility="Collapsed" />
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="Text" Value="" />
+                                <Condition Property="IsKeyboardFocusWithin" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
+                        </MultiTrigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>
