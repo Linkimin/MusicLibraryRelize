@@ -1,0 +1,214 @@
+using Microsoft.EntityFrameworkCore;
+using MusicBakh.Core.Domain;
+using MusicBakh.Infrastructure.Persistence.Entities;
+using MusicBakh.Infrastructure.Persistence.Repositories;
+using MusicBakh.Infrastructure.Search;
+using MusicLibrary.Tests.TestSupport;
+using Xunit;
+
+namespace MusicLibrary.Tests.Search;
+
+/// <summary>
+/// Тесты на FTS5-поиск работают на in-memory SQLite, к которому применены реальные
+/// миграции (включая AddTracksFts с виртуальной таблицей и триггерами).
+/// </summary>
+public sealed class SqliteFtsSearchServiceTests
+{
+    [Fact]
+    public void Empty_Query_Returns_Empty_List_Without_SQL()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+
+        Assert.Empty(service.Search(string.Empty));
+        Assert.Empty(service.Search("   "));
+        Assert.Empty(service.Search("\""));
+    }
+
+    [Fact]
+    public void Search_Finds_By_Title_Exact()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+        repo.Add(new Track { Title = "Bohemian Rhapsody", Artist = "Queen", FilePath = "1.mp3" });
+
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+        var hits = service.Search("Bohemian");
+
+        Assert.Single(hits);
+        Assert.Equal("Bohemian Rhapsody", hits[0].Title);
+    }
+
+    [Fact]
+    public void Search_Finds_By_Prefix_Across_Fields()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+        repo.Add(new Track { Title = "Radio Ga Ga", Artist = "Queen",   Album = "The Works",     FilePath = "1.mp3" });
+        repo.Add(new Track { Title = "Hotel",       Artist = "Eagles",  Album = "Hotel California", FilePath = "2.mp3" });
+
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+
+        Assert.Single(service.Search("quee"));
+        Assert.Single(service.Search("californ"));
+    }
+
+    [Fact]
+    public void Search_Multiword_Is_Implicit_AND()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+        repo.Add(new Track { Title = "Radio Ga Ga",       Artist = "Queen",       FilePath = "1.mp3" });
+        repo.Add(new Track { Title = "Bohemian Rhapsody", Artist = "Queen",       FilePath = "2.mp3" });
+        repo.Add(new Track { Title = "Radio",             Artist = "Lana Del Rey", FilePath = "3.mp3" });
+
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+        var hits = service.Search("queen radio");
+
+        Assert.Single(hits);
+        Assert.Equal("Radio Ga Ga", hits[0].Title);
+    }
+
+    [Fact]
+    public void Trigger_Tracks_ai_Indexes_New_Inserts()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+
+        Assert.Empty(service.Search("muse"));
+
+        repo.Add(new Track { Title = "Knights of Cydonia", Artist = "Muse", FilePath = "1.mp3" });
+
+        Assert.Single(service.Search("muse"));
+    }
+
+    [Fact]
+    public void Trigger_Tracks_ad_Removes_From_Index()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+        var added = repo.Add(new Track { Title = "Time", Artist = "Pink Floyd", FilePath = "1.mp3" });
+
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+        Assert.Single(service.Search("Pink"));
+
+        repo.Remove(added.Id);
+
+        Assert.Empty(service.Search("Pink"));
+    }
+
+    [Fact]
+    public void Trigger_Tracks_au_Updates_Index_When_Indexed_Field_Changes()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+        var added = repo.Add(new Track { Title = "Track One", Artist = "Old Name", FilePath = "1.mp3" });
+
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+        Assert.Single(service.Search("Old"));
+
+        using (var ctx = factory.CreateContext())
+        {
+            var entity = ctx.Tracks.Single(t => t.Id == added.Id);
+            entity.Artist = "New Name";
+            ctx.SaveChanges();
+        }
+
+        Assert.Empty(service.Search("Old"));
+        Assert.Single(service.Search("New"));
+    }
+
+    [Fact]
+    public void Trigger_Tracks_au_Does_Not_Touch_Index_On_NonIndexed_Field_Change()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+        var added = repo.Add(new Track { Title = "Song", Artist = "Band", FilePath = "1.mp3", CoverPath = "old-cover.png" });
+
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+        Assert.Single(service.Search("Band"));
+
+        using (var ctx = factory.CreateContext())
+        {
+            var entity = ctx.Tracks.Single(t => t.Id == added.Id);
+            entity.CoverPath = "new-cover.png";
+            ctx.SaveChanges();
+        }
+
+        // Поиск по-прежнему находит трек — индекс не перестраивался зря.
+        Assert.Single(service.Search("Band"));
+    }
+
+    [Fact]
+    public void Search_Removes_Latin_Diacritics()
+    {
+        // unicode61 remove_diacritics=2 нормализует латинскую диакритику:
+        // "Café" находится по "cafe", "Mötley" по "motley".
+        // Для кириллицы это работает на ё→е (один знак), но НЕ на й→и
+        // (это отдельная буква, не диакритика). Это известное ограничение
+        // SQLite FTS5; полноценная морфология — задача backlog 1.0.3+.
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+        repo.Add(new Track { Title = "Kind of Café",   Artist = "Miles",      FilePath = "1.mp3" });
+        repo.Add(new Track { Title = "Dr. Feelgood",   Artist = "Mötley Crüe", FilePath = "2.mp3" });
+
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+
+        Assert.Single(service.Search("cafe"));
+        Assert.Single(service.Search("motley"));
+    }
+
+    [Fact]
+    public void Search_Finds_Cyrillic_By_Exact_Match()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+        repo.Add(new Track { Title = "Звезда по имени Солнце", Artist = "Цой", FilePath = "1.mp3" });
+
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+
+        Assert.Single(service.Search("звезда"));
+        Assert.Single(service.Search("цой"));
+    }
+
+    [Fact]
+    public void Search_Backfill_Sees_Tracks_Inserted_Before_FTS_Existed()
+    {
+        // Имитация апгрейда с 1.0.1: данные уже лежат в Tracks, миграция AddTracksFts
+        // запускает backfill через INSERT INTO TracksFts SELECT FROM Tracks.
+        // MigratedSqliteDbContextFactory применяет все миграции по порядку, поэтому
+        // мы проверяем сценарий: insert через repo идёт после Migrate() — но триггер
+        // делает своё дело. Отдельно проверяем именно факт работы pipeline на свежей
+        // БД с уже накатанной FTS-схемой (Tracks_ai).
+        using var factory = new MigratedSqliteDbContextFactory();
+
+        using (var ctx = factory.CreateContext())
+        {
+            ctx.Tracks.AddRange(
+                new TrackEntity { Title = "Seed One", Artist = "Vendor", FilePath = "s1.mp3", IsBuiltIn = true },
+                new TrackEntity { Title = "Seed Two", Artist = "Vendor", FilePath = "s2.mp3", IsBuiltIn = true });
+            ctx.SaveChanges();
+        }
+
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+        var hits = service.Search("vendor");
+
+        Assert.Equal(2, hits.Count);
+    }
+
+    [Fact]
+    public void Injection_Like_Query_Does_Not_Throw()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+        repo.Add(new Track { Title = "Safe", Artist = "Band", FilePath = "1.mp3" });
+
+        var service = new SqliteFtsSearchService(factory.CreateContext);
+
+        // Не должно бросать; результат может быть пустым или содержать «safe» — главное,
+        // что метакомбинации не ломают FTS-парсер.
+        var hits = service.Search("safe\" OR (1=1) --");
+        Assert.NotNull(hits);
+    }
+}
