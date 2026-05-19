@@ -45,6 +45,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MusicBakh.Core\MusicBakh.Core.csproj" />
+    <ProjectReference Include="..\MusicBakh.Application\MusicBakh.Application.csproj" />
   </ItemGroup>
 
 </Project>

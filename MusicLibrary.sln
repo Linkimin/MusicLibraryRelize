@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MusicLibrary.Tests", "Music
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MusicBakh.Core", "MusicBakh.Core\MusicBakh.Core.csproj", "{92B692F8-3BF1-4547-B70B-C15F5E17D0BD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MusicBakh.Application", "MusicBakh.Application\MusicBakh.Application.csproj", "{FE43B413-72CC-4379-AEBE-38B05DE3F482}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{92B692F8-3BF1-4547-B70B-C15F5E17D0BD}.Release|x64.Build.0 = Release|Any CPU
 		{92B692F8-3BF1-4547-B70B-C15F5E17D0BD}.Release|x86.ActiveCfg = Release|Any CPU
 		{92B692F8-3BF1-4547-B70B-C15F5E17D0BD}.Release|x86.Build.0 = Release|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Debug|x64.Build.0 = Debug|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Debug|x86.Build.0 = Debug|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Release|x64.ActiveCfg = Release|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Release|x64.Build.0 = Release|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Release|x86.ActiveCfg = Release|Any CPU
+		{FE43B413-72CC-4379-AEBE-38B05DE3F482}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
