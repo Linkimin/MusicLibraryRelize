@@ -26,9 +26,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IConfirmationService? _confirmationService;
     private readonly IListeningHistoryRepository _listeningHistoryRepository;
     private readonly IPlayerSettingsRepository _playerSettingsRepository;
+    private readonly ISearchService? _searchService;
     private readonly DispatcherTimer _progressTimer;
 
     private string _selectedGenre = AllGenres;
+    private string _searchText = string.Empty;
     private Track? _selectedTrack;
     private Track? _playingTrack;
     private string _statusMessage = "Выберите трек для воспроизведения.";
@@ -51,7 +53,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IListeningHistoryRepository listeningHistoryRepository,
         IPlayerSettingsRepository playerSettingsRepository,
         IAddTrackDialogService? addTrackDialogService = null,
-        IConfirmationService? confirmationService = null)
+        IConfirmationService? confirmationService = null,
+        ISearchService? searchService = null)
     {
         _trackRepository = trackRepository;
         _fileService = fileService;
@@ -61,6 +64,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _playerSettingsRepository = playerSettingsRepository;
         _addTrackDialogService = addTrackDialogService;
         _confirmationService = confirmationService;
+        _searchService = searchService;
 
         _allTracks = new List<Track>(trackRepository.GetAll());
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
@@ -128,7 +132,24 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _selectedGenre, value))
             {
-                ApplyGenreFilter();
+                ApplyFilters();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Свободная строка поиска. Дебаунс делается на стороне XAML через
+    /// Binding Delay=250, поэтому setter ViewModel-а просто применяет фильтр
+    /// синхронно — это упрощает unit-тесты (без таймера).
+    /// </summary>
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (SetProperty(ref _searchText, value ?? string.Empty))
+            {
+                ApplyFilters();
             }
         }
     }
@@ -396,13 +417,31 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void ApplyGenreFilter()
+    private void ApplyFilters()
     {
         DisplayedTracks.Clear();
 
-        IEnumerable<Track> tracks = SelectedGenre == AllGenres
-            ? _allTracks
-            : _allTracks.Where(track => track.Genre == SelectedGenre);
+        // Поиск идёт через ISearchService (FTS5 SQL под капотом), фильтр по жанру —
+        // отдельным in-memory пересечением. Это держит контракт ISearchService узким
+        // (одна строка → треки) и позволяет тестам подкидывать stub.
+        IEnumerable<Track> tracks;
+        if (!string.IsNullOrWhiteSpace(SearchText) && _searchService is not null)
+        {
+            var hits = _searchService.Search(SearchText);
+            var hitIds = new HashSet<int>(hits.Select(t => t.Id));
+            // Возвращаем из _allTracks, чтобы порядок и идентичность объектов совпадали с
+            // главной коллекцией (Selected/Playing-сравнения по reference в других местах).
+            tracks = _allTracks.Where(t => hitIds.Contains(t.Id));
+        }
+        else
+        {
+            tracks = _allTracks;
+        }
+
+        if (SelectedGenre != AllGenres)
+        {
+            tracks = tracks.Where(track => track.Genre == SelectedGenre);
+        }
 
         foreach (Track track in tracks)
         {
