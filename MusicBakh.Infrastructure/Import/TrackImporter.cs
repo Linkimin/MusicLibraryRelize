@@ -1,6 +1,5 @@
 using MusicBakh.Application.Abstractions;
 using MusicBakh.Application.Contracts;
-using MusicBakh.Infrastructure.Migration.Legacy;
 using System.IO;
 using System.Net.Http;
 
@@ -17,27 +16,22 @@ public sealed class TrackImporter : ITrackImporter
     private const long MaxDownloadBytes = 50L * 1024 * 1024;
     private static readonly string[] AllowedExtensions = { ".mp3", ".wav" };
 
-#pragma warning disable CS0618 // TrackImporter зависит от IUserTrackStorage как часть legacy-слоя, заменяется в Task 16.
-    private readonly IUserTrackStorage _storage;
-#pragma warning restore CS0618
-
+    private readonly IMusicStoragePaths _paths;
     private readonly IMetadataResolver _metadataResolver;
     private readonly ICoverResolver _coverResolver;
     private readonly HttpClient _httpClient;
 
-#pragma warning disable CS0618 // TrackImporter зависит от IUserTrackStorage как часть legacy-слоя, заменяется в Task 16.
     public TrackImporter(
-        IUserTrackStorage storage,
+        IMusicStoragePaths paths,
         IMetadataResolver metadataResolver,
         ICoverResolver coverResolver,
         HttpClient httpClient)
     {
-        _storage = storage;
+        _paths = paths;
         _metadataResolver = metadataResolver;
         _coverResolver = coverResolver;
         _httpClient = httpClient;
     }
-#pragma warning restore CS0618
 
     public async Task<ImportResult> ImportAsync(ImportRequest request, IProgress<double>? progress, CancellationToken cancellationToken)
     {
@@ -62,7 +56,7 @@ public sealed class TrackImporter : ITrackImporter
             ResolvedMetadata metadata = await _metadataResolver.ResolveAsync(audioPath, filenameHint, cancellationToken).ConfigureAwait(false);
             ResolvedCover cover = await _coverResolver.ResolveAsync(metadata, cancellationToken).ConfigureAwait(false);
 
-            string coverPath = Path.Combine(_storage.CoversDirectory, $"{Guid.NewGuid():N}.{cover.Extension}");
+            string coverPath = Path.Combine(_paths.CoversDirectory, $"{Guid.NewGuid():N}.{cover.Extension}");
             await File.WriteAllBytesAsync(coverPath, cover.Bytes, cancellationToken).ConfigureAwait(false);
 
             progress?.Report(1.0);
@@ -113,7 +107,7 @@ public sealed class TrackImporter : ITrackImporter
             throw new IOException("Поддерживаются только файлы .mp3 и .wav.");
         }
 
-        string targetPath = Path.Combine(_storage.MusicDirectory, $"{Guid.NewGuid():N}{extension}");
+        string targetPath = Path.Combine(_paths.MusicDirectory, $"{Guid.NewGuid():N}{extension}");
         await using FileStream sourceStream = File.OpenRead(sourcePath);
         await using FileStream targetStream = File.Create(targetPath);
         await sourceStream.CopyToAsync(targetStream, cancellationToken).ConfigureAwait(false);
@@ -152,7 +146,7 @@ public sealed class TrackImporter : ITrackImporter
             throw new IOException($"Файл больше {MaxDownloadBytes / (1024 * 1024)} МБ.");
         }
 
-        string targetPath = Path.Combine(_storage.MusicDirectory, $"{Guid.NewGuid():N}{extension}");
+        string targetPath = Path.Combine(_paths.MusicDirectory, $"{Guid.NewGuid():N}{extension}");
         await using FileStream targetStream = File.Create(targetPath);
         await using Stream sourceStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 

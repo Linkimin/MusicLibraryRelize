@@ -12,6 +12,7 @@ using MusicLibrary.Views;
 using System.Net.Http;
 using System.Windows;
 using System.Windows.Input;
+using MusicBakh.Application.Abstractions;
 
 namespace MusicLibrary;
 
@@ -40,7 +41,8 @@ public partial class MainWindow : Window
         var procedural = new ProceduralCoverGenerator();
         var coverResolver = new CompositeCoverResolver(itunesClient, procedural);
 
-        var importer = new TrackImporter(storage, metadataResolver, coverResolver, sharedHttpClient);
+        var paths = new LocalAppDataMusicStoragePaths();
+        var importer = new TrackImporter(paths, metadataResolver, coverResolver, sharedHttpClient);
         var openFileDialog = new OpenFileDialogService();
         var addTrackDialog = new AddTrackDialogService(openFileDialog, importer);
 
