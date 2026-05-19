@@ -11,15 +11,17 @@
         Background="{StaticResource BackgroundBrush}">
     <Window.InputBindings>
         <KeyBinding Key="Space" Command="{Binding PlayPauseCommand}" />
-        <!-- Slider/ListBox перехватывают стрелки, когда фокус находится внутри этих контролов. -->
-        <KeyBinding Key="Left" Command="{Binding SkipBackwardCommand}" />
-        <KeyBinding Key="Right" Command="{Binding SkipForwardCommand}" />
-        <KeyBinding Key="Left" Modifiers="Control" Command="{Binding PreviousTrackCommand}" />
-        <KeyBinding Key="Right" Modifiers="Control" Command="{Binding NextTrackCommand}" />
-        <KeyBinding Key="M" Command="{Binding ToggleMuteCommand}" />
-        <KeyBinding Key="R" Command="{Binding CycleRepeatModeCommand}" />
-        <!-- Ctrl+F фокусирует поле поиска. Обработка — в MainWindow.xaml.cs (UI-операция). -->
+        <!-- Все буквенные хоткеи — с Ctrl, чтобы не блокировать ввод этих букв
+             в поле поиска и других TextBox-ах (в русской раскладке R=К, M=Ь). -->
+        <KeyBinding Key="M" Modifiers="Control" Command="{Binding ToggleMuteCommand}" />
+        <KeyBinding Key="R" Modifiers="Control" Command="{Binding CycleRepeatModeCommand}" />
         <KeyBinding Key="F" Modifiers="Control" Command="ApplicationCommands.Find" />
+        <!-- Стрелки только с модификаторами: иначе их перехватывает ListBox треков
+             (стрелки вверх/вниз/влево/вправо для навигации) или Slider громкости/seek. -->
+        <KeyBinding Key="Left"  Modifiers="Shift"   Command="{Binding SkipBackwardCommand}" />
+        <KeyBinding Key="Right" Modifiers="Shift"   Command="{Binding SkipForwardCommand}" />
+        <KeyBinding Key="Left"  Modifiers="Control" Command="{Binding PreviousTrackCommand}" />
+        <KeyBinding Key="Right" Modifiers="Control" Command="{Binding NextTrackCommand}" />
     </Window.InputBindings>
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Find" Executed="OnFindCommandExecuted" />
