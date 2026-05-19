@@ -14,5 +14,11 @@ public sealed class Track
     public string FilePath { get; init; } = string.Empty;
     public string CoverPath { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Признак встроенного (seed) трека: такие треки нельзя удалять и менять, они
+    /// поставляются вместе с приложением. Пользовательские треки имеют IsBuiltIn=false.
+    /// </summary>
+    public bool IsBuiltIn { get; init; }
+
     public string DurationText => Duration.ToString(@"m\:ss");
 }

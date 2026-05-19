@@ -47,7 +47,7 @@ public sealed class SqliteTrackRepository : ITrackRepository
             FilePath = track.FilePath,
             CoverPath = track.CoverPath,
             AddedAtUtc = DateTime.UtcNow,
-            IsBuiltIn = false
+            IsBuiltIn = track.IsBuiltIn
         };
         ctx.Tracks.Add(entity);
         ctx.SaveChanges();
@@ -75,6 +75,7 @@ public sealed class SqliteTrackRepository : ITrackRepository
         Genre = e.Genre,
         Duration = TimeSpan.FromTicks(e.DurationTicks),
         FilePath = e.FilePath,
-        CoverPath = e.CoverPath
+        CoverPath = e.CoverPath,
+        IsBuiltIn = e.IsBuiltIn
     };
 }
