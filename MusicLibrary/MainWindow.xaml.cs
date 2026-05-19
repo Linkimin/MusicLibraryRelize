@@ -31,6 +31,27 @@ public partial class MainWindow : Window
         NativeWindowAppearance.Apply(this);
     }
 
+    private void OnFindCommandExecuted(object sender, ExecutedRoutedEventArgs e)
+    {
+        // Ctrl+F: фокус и выделение текста в строке поиска. Это чисто UI-операция
+        // над конкретным TextBox, поэтому живёт в code-behind, а не в команде VM.
+        SearchBox.Focus();
+        SearchBox.SelectAll();
+        e.Handled = true;
+    }
+
+    private void OnSearchBoxKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            // Эскейп — очистить и снять фокус. ViewModel получит пустой SearchText
+            // через биндинг и вернётся к полной библиотеке.
+            SearchBox.Clear();
+            Keyboard.ClearFocus();
+            e.Handled = true;
+        }
+    }
+
     private void OnSeekDragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
     {
         _viewModel.IsSeeking = true;

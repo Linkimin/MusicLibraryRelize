@@ -172,6 +172,46 @@ SQLite-файл создаётся автоматически при перво�
 | `AddLibrarySchema` | Таблица `Tracks`: Id, Title, Artist, Genre, DurationSeconds, FilePath, CoverPath, IsBuiltIn |
 | `AddListeningHistory` | Таблица `ListeningHistory`: Id, TrackId, PlayedAt (UTC) |
 | `AddKeyValueStore` | Таблица `KeyValueStore`: Key (PK), Value — используется для хранения настроек плеера |
+| `AddTrackAlbum` | Колонка `Tracks.Album TEXT NOT NULL DEFAULT ''` + индекс |
+| `AddTracksFts` | Виртуальная таблица `TracksFts USING fts5(Title, Artist, Album, Genre, content='Tracks')` + триггеры `Tracks_ai`/`Tracks_ad`/`Tracks_au AFTER UPDATE OF Title,Artist,Album,Genre` + backfill уже существующих треков |
+
+### Полнотекстовый поиск (FTS5)
+
+`TracksFts` — external-content FTS5 индекс, разделяющий хранилище с `Tracks` (`content='Tracks'`, `content_rowid='Id'`). Сами данные не дублируются; индекс хранит только обратные термы. Токенизатор `unicode61 remove_diacritics 2` снимает латинскую диакритику (но не нормализует кириллические `й/и`, `ё/е` обрабатывается через diacritic-fold).
+
+Синхронизация — тремя SQL-триггерами:
+- `Tracks_ai` — INSERT в `Tracks` → INSERT в `TracksFts`.
+- `Tracks_ad` — DELETE из `Tracks` → команда `'delete'` в FTS со старыми значениями.
+- `Tracks_au AFTER UPDATE OF Title,Artist,Album,Genre` — пара `'delete' + INSERT`. Clause `AFTER UPDATE OF <cols>` экономит работу: апдейты `CoverPath`/`IsBuiltIn` и будущих `LastPlayedAt`/`Rating` индекс не дёргают.
+
+Поиск идёт через `ISearchService` (`MusicBakh.Core.Abstractions`) → `SqliteFtsSearchService` (`MusicBakh.Infrastructure.Search`):
+```sql
+SELECT t.* FROM Tracks t
+JOIN TracksFts f ON f.rowid = t.Id
+WHERE TracksFts MATCH @query
+ORDER BY bm25(TracksFts) LIMIT @limit
+```
+
+Пользовательская строка проходит через `FtsQueryBuilder.Build`, который чистит зарезервированные FTS-символы (`" * : ( )`), оборачивает каждое слово в кавычки + `*` (prefix-match), склеивает пробелом (неявный AND), режет на 10 токенов. Пустой/некорректный ввод → null → `ISearchService.Search` возвращает пустой список без SQL-запроса.
+
+Admin-команды для ручной починки индекса (не выставлены в UI):
+- `INSERT INTO TracksFts(TracksFts) VALUES('rebuild');` — пересборка индекса из `Tracks`.
+- `INSERT INTO TracksFts(TracksFts) VALUES('optimize');` — компакция после массовых вставок/удалений.
+
+### История прослушиваний
+
+`IListeningHistoryRepository` (`MusicBakh.Core.Abstractions`) расширен в итерации B:
+
+| Метод | Использование |
+|---|---|
+| `GetRecent(limit=50)` | Виджет «недавнее» в правой колонке `MainWindow` — последние N событий с дублями |
+| `GetAll()` | Полный журнал без лимита (для будущих экспортов, не используется в UI 1.0.2) |
+| `GetTop(limit=50)` | Топ-N треков по числу прослушиваний → `ListeningStats(Track, PlayCount, LastPlayedUtc)`. Используется во вкладке «Топ-50» StatsWindow |
+| `GetRecentUnique(limit=50)` | Последние N **уникальных** треков по времени последнего прослушивания. Вкладка «Недавние» StatsWindow |
+| `GetNeverPlayed()` | Треки библиотеки без записей в истории. Вкладка «Ни разу не играли» |
+| `Append(entry)` | Запись нового события прослушивания |
+
+`SqliteListeningHistoryRepository` реализует агрегации через EF Core `GroupBy` + dictionary-lookup по `Tracks` (вместо `.Include` на грубой проекции — иначе EF не транслирует выражение).
 
 ## DI-композиция
 

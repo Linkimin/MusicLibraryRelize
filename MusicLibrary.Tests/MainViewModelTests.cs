@@ -30,6 +30,70 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void SearchText_FiltersDisplayedTracks_ViaSearchService()
+    {
+        var tracks = new[]
+        {
+            new Track { Id = 1, Title = "Bohemian Rhapsody", Artist = "Queen",  Genre = "Рок",  FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "Radio Ga Ga",       Artist = "Queen",  Genre = "Рок",  FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "Take Five",         Artist = "Brubeck", Genre = "Джаз", FilePath = "3.mp3" }
+        };
+        var viewModel = CreateViewModelWithSearch(tracks, new StubSearchService(tracks));
+
+        viewModel.SearchText = "queen";
+
+        Assert.Equal(2, viewModel.DisplayedTracks.Count);
+        Assert.All(viewModel.DisplayedTracks, t => Assert.Equal("Queen", t.Artist));
+    }
+
+    [Fact]
+    public void SearchText_Combined_With_GenreFilter()
+    {
+        var tracks = new[]
+        {
+            new Track { Id = 1, Title = "Rock A", Artist = "Band", Genre = "Рок",  FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "Rock B", Artist = "Band", Genre = "Рок",  FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "Jazz A", Artist = "Band", Genre = "Джаз", FilePath = "3.mp3" }
+        };
+        var viewModel = CreateViewModelWithSearch(tracks, new StubSearchService(tracks));
+
+        viewModel.SearchText = "band";        // все три попадают в поиск
+        viewModel.SelectedGenre = "Джаз";     // ...но жанр оставляет только один
+
+        Assert.Single(viewModel.DisplayedTracks);
+        Assert.Equal("Jazz A", viewModel.DisplayedTracks[0].Title);
+    }
+
+    [Fact]
+    public void Clearing_SearchText_Restores_Full_Library()
+    {
+        var tracks = new[]
+        {
+            new Track { Id = 1, Title = "One",   Artist = "Band", Genre = "Рок", FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "Two",   Artist = "Band", Genre = "Рок", FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "Three", Artist = "Band", Genre = "Рок", FilePath = "3.mp3" }
+        };
+        var viewModel = CreateViewModelWithSearch(tracks, new StubSearchService(tracks));
+
+        viewModel.SearchText = "One";
+        Assert.Single(viewModel.DisplayedTracks);
+
+        viewModel.SearchText = string.Empty;
+        Assert.Equal(3, viewModel.DisplayedTracks.Count);
+    }
+
+    [Fact]
+    public void SearchText_Without_SearchService_NoOp()
+    {
+        // Защита: если поисковый сервис не зарегистрирован (DI ещё не пробросил его —
+        // переходный период), установка SearchText не должна валить ViewModel.
+        var viewModel = CreateViewModel(); // SearchService=null
+        viewModel.SearchText = "anything";
+
+        Assert.NotEmpty(viewModel.DisplayedTracks);
+    }
+
+    [Fact]
     public void PlayPauseCommand_DoesNotAddHistory_BeforeMediaOpened()
     {
         var viewModel = CreateViewModel();
@@ -720,6 +784,47 @@ public sealed class MainViewModelTests
             confirmationService: null);
     }
 
+    private static MainViewModel CreateViewModelWithSearch(
+        IReadOnlyList<Track> tracks,
+        ISearchService searchService)
+    {
+        return new MainViewModel(
+            new FakeTrackRepository(tracks),
+            new FakeFileService(),
+            new FakeSaveFileDialogService(),
+            new FakeAudioPlayerService(),
+            new FakeListeningHistoryRepository(),
+            new FakePlayerSettingsRepository(),
+            addTrackDialogService: null,
+            confirmationService: null,
+            searchService: searchService);
+    }
+
+    private sealed class StubSearchService : ISearchService
+    {
+        // Простой substring-match по Title/Artist/Album/Genre, чтобы тесты на
+        // комбинацию фильтров не зависели от настоящего FTS-движка.
+        private readonly IReadOnlyList<Track> _all;
+
+        public StubSearchService(IReadOnlyList<Track> all) => _all = all;
+
+        public IReadOnlyList<Track> Search(string query, int limit = 500)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return Array.Empty<Track>();
+            }
+            return _all
+                .Where(t =>
+                    (t.Title ?? "").Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    (t.Artist ?? "").Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    (t.Album ?? "").Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    (t.Genre ?? "").Contains(query, StringComparison.OrdinalIgnoreCase))
+                .Take(limit)
+                .ToList();
+        }
+    }
+
     private static (MainViewModel ViewModel, FakeAudioPlayerService Player, FakePlayerSettingsRepository Repo) CreateViewModelWithPlayer()
     {
         var tracks = new[]
@@ -747,6 +852,7 @@ public sealed class MainViewModelTests
         public IReadOnlyList<Track> GetAll() => _tracks;
         public Track? FindById(int id) => _tracks.FirstOrDefault(t => t.Id == id);
         public Track Add(Track track) => throw new NotSupportedException();
+        public void Update(Track track) => throw new NotSupportedException();
         public void Remove(int id) => throw new NotSupportedException();
     }
 
@@ -785,6 +891,27 @@ public sealed class MainViewModelTests
 
         public IReadOnlyList<PlaybackEntry> GetRecent(int limit = 50)
             => _entries.OrderByDescending(e => e.PlayedAt).Take(limit).ToList();
+
+        public IReadOnlyList<PlaybackEntry> GetAll()
+            => _entries.OrderByDescending(e => e.PlayedAt).ToList();
+
+        public IReadOnlyList<ListeningStats> GetTop(int limit = 50)
+            => _entries
+                .GroupBy(e => e.Track.Id)
+                .Select(g => new ListeningStats(g.First().Track, g.Count(), g.Max(e => e.PlayedAt)))
+                .OrderByDescending(s => s.PlayCount)
+                .Take(limit)
+                .ToList();
+
+        public IReadOnlyList<PlaybackEntry> GetRecentUnique(int limit = 50)
+            => _entries
+                .GroupBy(e => e.Track.Id)
+                .Select(g => g.OrderByDescending(e => e.PlayedAt).First())
+                .OrderByDescending(e => e.PlayedAt)
+                .Take(limit)
+                .ToList();
+
+        public IReadOnlyList<Track> GetNeverPlayed() => Array.Empty<Track>();
 
         public void Append(PlaybackEntry entry) => _entries.Add(entry);
     }

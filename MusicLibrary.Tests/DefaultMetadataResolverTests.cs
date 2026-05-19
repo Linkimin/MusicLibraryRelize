@@ -21,6 +21,25 @@ public sealed class DefaultMetadataResolverTests
     }
 
     [Fact]
+    public async Task ResolveAsync_PropagatesAlbumFromTag()
+    {
+        var resolver = CreateResolver(new LocalTagInfo
+        {
+            Title = "Time",
+            Artist = "Pink Floyd",
+            Album = "The Dark Side of the Moon",
+            Genre = "Rock"
+        });
+
+        ResolvedMetadata result = await resolver.ResolveAsync(
+            @"C:\Temp\track.mp3",
+            "Pink Floyd - Time",
+            CancellationToken.None);
+
+        Assert.Equal("The Dark Side of the Moon", result.Album);
+    }
+
+    [Fact]
     public async Task ResolveAsync_WhenFilenameFallbackContainsLegitimateBracketSuffix_KeepsSuffix()
     {
         var resolver = CreateResolver(new LocalTagInfo());

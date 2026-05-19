@@ -37,11 +37,15 @@ public sealed class SqliteTrackRepository : ITrackRepository
 
     public Track Add(Track track)
     {
+        // IsBuiltIn=true принимаем сознательно: этот путь использует только seed-loader
+        // при первом запуске. У UI нет способа собрать Track с IsBuiltIn=true (форма
+        // импорта явно ставит false), поэтому отдельной защиты здесь не требуется.
         using var ctx = _contextFactory();
         var entity = new TrackEntity
         {
             Title = track.Title,
             Artist = track.Artist,
+            Album = track.Album,
             Genre = track.Genre,
             DurationTicks = track.Duration.Ticks,
             FilePath = track.FilePath,
@@ -55,6 +59,29 @@ public sealed class SqliteTrackRepository : ITrackRepository
         return MapToDomain(entity);
     }
 
+    public void Update(Track track)
+    {
+        using var ctx = _contextFactory();
+        var entity = ctx.Tracks.FirstOrDefault(t => t.Id == track.Id);
+        if (entity is null)
+        {
+            return;
+        }
+
+        entity.Title = track.Title;
+        entity.Artist = track.Artist;
+        entity.Album = track.Album;
+        entity.Genre = track.Genre;
+        entity.DurationTicks = track.Duration.Ticks;
+        entity.FilePath = track.FilePath;
+        entity.CoverPath = track.CoverPath;
+        entity.IsBuiltIn = track.IsBuiltIn;
+        // AddedAtUtc намеренно не трогаем — это «дата добавления в библиотеку», она не
+        // должна обнуляться при обновлении полей.
+
+        ctx.SaveChanges();
+    }
+
     public void Remove(int id)
     {
         using var ctx = _contextFactory();
@@ -62,6 +89,10 @@ public sealed class SqliteTrackRepository : ITrackRepository
         if (entity is null)
         {
             return;
+        }
+        if (entity.IsBuiltIn)
+        {
+            throw new NotSupportedException("Built-in tracks cannot be removed.");
         }
         ctx.Tracks.Remove(entity);
         ctx.SaveChanges();
@@ -72,6 +103,7 @@ public sealed class SqliteTrackRepository : ITrackRepository
         Id = e.Id,
         Title = e.Title,
         Artist = e.Artist,
+        Album = e.Album,
         Genre = e.Genre,
         Duration = TimeSpan.FromTicks(e.DurationTicks),
         FilePath = e.FilePath,

@@ -11,6 +11,8 @@
                 <ResourceDictionary Source="Resources/SliderStyles.xaml" />
                 <ResourceDictionary Source="Resources/ButtonStyles.xaml" />
                 <ResourceDictionary Source="Resources/ComboBoxStyles.xaml" />
+                <ResourceDictionary Source="Resources/TextBoxStyles.xaml" />
+                <ResourceDictionary Source="Resources/TabStyles.xaml" />
                 <ResourceDictionary Source="Resources/ListStyles.xaml" />
                 <ResourceDictionary Source="Resources/PlayerIcons.xaml" />
                 <ResourceDictionary Source="Resources/TrackTemplates.xaml" />
@@ -24,6 +26,7 @@
                                                    SuccessBrush="{StaticResource SuccessBrush}"
                                                    ErrorBrush="{StaticResource ErrorBrush}" />
             <converters:NullToBooleanConverter x:Key="NullToBooleanConverter" />
+            <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         </ResourceDictionary>

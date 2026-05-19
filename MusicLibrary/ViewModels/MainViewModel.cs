@@ -15,6 +15,11 @@ namespace MusicLibrary.ViewModels;
 public sealed class MainViewModel : ViewModelBase, IDisposable
 {
     private const string AllGenres = "Все жанры";
+
+    // Лимит относится только к виджету «недавнее» в правой колонке MainWindow:
+    // показываем последние 50 событий (с дублями), потому что виджет — это
+    // «что играло прямо сейчас», а не журнал. Полная история без лимита доступна
+    // через IListeningHistoryRepository.GetAll и используется в StatsWindow.
     private const int MaxHistoryItems = 50;
 
     private readonly List<Track> _allTracks;
@@ -26,9 +31,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IConfirmationService? _confirmationService;
     private readonly IListeningHistoryRepository _listeningHistoryRepository;
     private readonly IPlayerSettingsRepository _playerSettingsRepository;
+    private readonly ISearchService? _searchService;
+    private readonly IStatsWindowService? _statsWindowService;
     private readonly DispatcherTimer _progressTimer;
 
     private string _selectedGenre = AllGenres;
+    private string _searchText = string.Empty;
     private Track? _selectedTrack;
     private Track? _playingTrack;
     private string _statusMessage = "Выберите трек для воспроизведения.";
@@ -51,7 +59,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IListeningHistoryRepository listeningHistoryRepository,
         IPlayerSettingsRepository playerSettingsRepository,
         IAddTrackDialogService? addTrackDialogService = null,
-        IConfirmationService? confirmationService = null)
+        IConfirmationService? confirmationService = null,
+        ISearchService? searchService = null,
+        IStatsWindowService? statsWindowService = null)
     {
         _trackRepository = trackRepository;
         _fileService = fileService;
@@ -61,6 +71,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _playerSettingsRepository = playerSettingsRepository;
         _addTrackDialogService = addTrackDialogService;
         _confirmationService = confirmationService;
+        _searchService = searchService;
+        _statsWindowService = statsWindowService;
 
         _allTracks = new List<Track>(trackRepository.GetAll());
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
@@ -85,6 +97,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ReplayHistoryEntryCommand = new RelayCommand(
             parameter => ReplayHistoryEntry(parameter as PlaybackEntry),
             parameter => parameter is PlaybackEntry);
+        OpenStatsCommand = new RelayCommand(
+            _ => _statsWindowService?.Show(),
+            _ => _statsWindowService is not null);
 
         SkipForwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(10)), _ => PlayingTrack is not null);
         SkipBackwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(-10)), _ => PlayingTrack is not null);
@@ -113,6 +128,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand DeleteTrackCommand { get; }
     public ICommand PlayTrackCommand { get; }
     public ICommand ReplayHistoryEntryCommand { get; }
+    public ICommand OpenStatsCommand { get; }
     public ICommand SkipForwardCommand { get; }
     public ICommand SkipBackwardCommand { get; }
     public ICommand PreviousTrackCommand { get; }
@@ -128,7 +144,24 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _selectedGenre, value))
             {
-                ApplyGenreFilter();
+                ApplyFilters();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Свободная строка поиска. Дебаунс делается на стороне XAML через
+    /// Binding Delay=250, поэтому setter ViewModel-а просто применяет фильтр
+    /// синхронно — это упрощает unit-тесты (без таймера).
+    /// </summary>
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (SetProperty(ref _searchText, value ?? string.Empty))
+            {
+                ApplyFilters();
             }
         }
     }
@@ -311,6 +344,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             Title = candidate.Title,
             Artist = candidate.Artist,
+            Album = candidate.Album,
             Genre = candidate.Genre,
             Duration = candidate.Duration,
             FilePath = candidate.AudioFilePath,
@@ -395,13 +429,31 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void ApplyGenreFilter()
+    private void ApplyFilters()
     {
         DisplayedTracks.Clear();
 
-        IEnumerable<Track> tracks = SelectedGenre == AllGenres
-            ? _allTracks
-            : _allTracks.Where(track => track.Genre == SelectedGenre);
+        // Поиск идёт через ISearchService (FTS5 SQL под капотом), фильтр по жанру —
+        // отдельным in-memory пересечением. Это держит контракт ISearchService узким
+        // (одна строка → треки) и позволяет тестам подкидывать stub.
+        IEnumerable<Track> tracks;
+        if (!string.IsNullOrWhiteSpace(SearchText) && _searchService is not null)
+        {
+            var hits = _searchService.Search(SearchText);
+            var hitIds = new HashSet<int>(hits.Select(t => t.Id));
+            // Возвращаем из _allTracks, чтобы порядок и идентичность объектов совпадали с
+            // главной коллекцией (Selected/Playing-сравнения по reference в других местах).
+            tracks = _allTracks.Where(t => hitIds.Contains(t.Id));
+        }
+        else
+        {
+            tracks = _allTracks;
+        }
+
+        if (SelectedGenre != AllGenres)
+        {
+            tracks = tracks.Where(track => track.Genre == SelectedGenre);
+        }
 
         foreach (Track track in tracks)
         {

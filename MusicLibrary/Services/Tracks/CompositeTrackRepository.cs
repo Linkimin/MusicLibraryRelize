@@ -42,6 +42,10 @@ public sealed class CompositeTrackRepository : ITrackRepository
                 Id = id,
                 Title = user.Title,
                 Artist = user.Artist,
+                // Legacy JSON-формат UserTrack не несёт Album — пользовательские треки
+                // оттуда приходят с пустым альбомом. Полноценное значение появится после
+                // ре-импорта (TagLib читает tag.Album).
+                Album = string.Empty,
                 Genre = user.Genre,
                 Duration = TimeSpan.FromSeconds(user.DurationSeconds),
                 FilePath = user.FilePath,
@@ -63,6 +67,9 @@ public sealed class CompositeTrackRepository : ITrackRepository
 
     public Track Add(Track track) =>
         throw new NotSupportedException("CompositeTrackRepository не поддерживает добавление в этой итерации.");
+
+    public void Update(Track track) =>
+        throw new NotSupportedException("CompositeTrackRepository не поддерживает обновление в этой итерации.");
 
     public void Remove(int id) =>
         throw new NotSupportedException("CompositeTrackRepository не поддерживает удаление в этой итерации.");

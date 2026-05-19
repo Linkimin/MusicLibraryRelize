@@ -27,24 +27,110 @@ public sealed class SqliteListeningHistoryRepository : IListeningHistoryReposito
             .Include(h => h.Track)
             .OrderByDescending(h => h.PlayedAtUtc)
             .Take(limit)
-            .Select(h => new PlaybackEntry
+            .Select(h => ToEntry(h))
+            .ToList();
+    }
+
+    public IReadOnlyList<PlaybackEntry> GetAll()
+    {
+        using var ctx = _contextFactory();
+        return ctx.ListeningHistory
+            .Include(h => h.Track)
+            .OrderByDescending(h => h.PlayedAtUtc)
+            .Select(h => ToEntry(h))
+            .ToList();
+    }
+
+    public IReadOnlyList<ListeningStats> GetTop(int limit = 50)
+    {
+        using var ctx = _contextFactory();
+        // GroupBy по TrackId, считаем сколько раз сыграли и когда в последний раз;
+        // потом join с Tracks, чтобы получить актуальные доменные поля.
+        // EF Core 10 транслирует это в один SQL-запрос с GROUP BY.
+        var aggregates = ctx.ListeningHistory
+            .GroupBy(h => h.TrackId)
+            .Select(g => new
             {
-                Track = new Track
-                {
-                    Id = h.Track.Id,
-                    Title = h.Track.Title,
-                    Artist = h.Track.Artist,
-                    Genre = h.Track.Genre,
-                    Duration = TimeSpan.FromTicks(h.Track.DurationTicks),
-                    FilePath = h.Track.FilePath,
-                    CoverPath = h.Track.CoverPath,
-                    // Критично: IsBuiltIn должен дотечь до UI. Иначе после перезапуска
-                    // history-replay вернёт встроенный трек с IsBuiltIn=false, и кнопка
-                    // «Удалить» активируется на shipped-файлы из install-папки.
-                    IsBuiltIn = h.Track.IsBuiltIn
-                },
-                PlayedAt = h.PlayedAtUtc
+                TrackId = g.Key,
+                PlayCount = g.Count(),
+                LastPlayedUtc = g.Max(h => h.PlayedAtUtc)
             })
+            .OrderByDescending(a => a.PlayCount)
+            .ThenByDescending(a => a.LastPlayedUtc)
+            .Take(limit)
+            .ToList();
+
+        if (aggregates.Count == 0)
+        {
+            return Array.Empty<ListeningStats>();
+        }
+
+        var trackIds = aggregates.Select(a => a.TrackId).ToList();
+        var tracks = ctx.Tracks
+            .Where(t => trackIds.Contains(t.Id))
+            .ToDictionary(t => t.Id, MapEntityToTrack);
+
+        var result = new List<ListeningStats>(aggregates.Count);
+        foreach (var agg in aggregates)
+        {
+            if (tracks.TryGetValue(agg.TrackId, out var track))
+            {
+                result.Add(new ListeningStats(track, agg.PlayCount, agg.LastPlayedUtc));
+            }
+            // Если в Tracks трека нет (например, удалили после прослушивания, а CASCADE
+            // не отработал из-за soft-delete в будущей итерации) — пропускаем тихо.
+            // На текущей схеме CASCADE гарантирует, что такого не случается.
+        }
+        return result;
+    }
+
+    public IReadOnlyList<PlaybackEntry> GetRecentUnique(int limit = 50)
+    {
+        using var ctx = _contextFactory();
+        // Уникальные TrackId с временем последнего прослушивания, отсортированные по нему.
+        // Используем GroupBy + Max — EF Core 10 транслирует это нативно.
+        var recent = ctx.ListeningHistory
+            .GroupBy(h => h.TrackId)
+            .Select(g => new
+            {
+                TrackId = g.Key,
+                LastPlayedUtc = g.Max(h => h.PlayedAtUtc)
+            })
+            .OrderByDescending(x => x.LastPlayedUtc)
+            .Take(limit)
+            .ToList();
+
+        if (recent.Count == 0)
+        {
+            return Array.Empty<PlaybackEntry>();
+        }
+
+        var trackIds = recent.Select(r => r.TrackId).ToList();
+        var tracks = ctx.Tracks
+            .Where(t => trackIds.Contains(t.Id))
+            .ToDictionary(t => t.Id, MapEntityToTrack);
+
+        var result = new List<PlaybackEntry>(recent.Count);
+        foreach (var r in recent)
+        {
+            if (tracks.TryGetValue(r.TrackId, out var track))
+            {
+                result.Add(new PlaybackEntry { Track = track, PlayedAt = r.LastPlayedUtc });
+            }
+        }
+        return result;
+    }
+
+    public IReadOnlyList<Track> GetNeverPlayed()
+    {
+        using var ctx = _contextFactory();
+        // LEFT JOIN не нужен — достаточно сравнить множества Id через NOT EXISTS,
+        // что EF транслирует из !ctx.ListeningHistory.Any(...).
+        return ctx.Tracks
+            .Where(t => !ctx.ListeningHistory.Any(h => h.TrackId == t.Id))
+            .OrderBy(t => t.IsBuiltIn ? 0 : 1)
+            .ThenBy(t => t.Id)
+            .Select(t => MapEntityToTrack(t))
             .ToList();
     }
 
@@ -58,4 +144,28 @@ public sealed class SqliteListeningHistoryRepository : IListeningHistoryReposito
         });
         ctx.SaveChanges();
     }
+
+    // Маппинг entity → Track. Дублирует SqliteTrackRepository.MapToDomain намеренно —
+    // вынос помещался бы в Core, что потянуло бы туда EF-сущности.
+    private static Track MapEntityToTrack(TrackEntity e) => new()
+    {
+        Id = e.Id,
+        Title = e.Title,
+        Artist = e.Artist,
+        Album = e.Album,
+        Genre = e.Genre,
+        Duration = TimeSpan.FromTicks(e.DurationTicks),
+        FilePath = e.FilePath,
+        CoverPath = e.CoverPath,
+        // Критично: IsBuiltIn должен дотечь до UI. Иначе после перезапуска
+        // history-replay вернёт встроенный трек с IsBuiltIn=false, и кнопка
+        // «Удалить» активируется на shipped-файлы из install-папки.
+        IsBuiltIn = e.IsBuiltIn
+    };
+
+    private static PlaybackEntry ToEntry(ListeningHistoryEntryEntity h) => new()
+    {
+        Track = MapEntityToTrack(h.Track),
+        PlayedAt = h.PlayedAtUtc
+    };
 }

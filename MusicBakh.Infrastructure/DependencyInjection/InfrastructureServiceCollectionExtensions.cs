@@ -10,6 +10,7 @@ using MusicBakh.Infrastructure.Metadata;
 using MusicBakh.Infrastructure.Migration;
 using MusicBakh.Infrastructure.Persistence;
 using MusicBakh.Infrastructure.Persistence.Repositories;
+using MusicBakh.Infrastructure.Search;
 using MusicBakh.Infrastructure.Seeding;
 using MusicBakh.Infrastructure.Time;
 
@@ -34,6 +35,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ITrackRepository, SqliteTrackRepository>();
         services.AddSingleton<IListeningHistoryRepository, SqliteListeningHistoryRepository>();
         services.AddSingleton<IPlayerSettingsRepository, SqlitePlayerSettingsRepository>();
+        services.AddSingleton<ISearchService, SqliteFtsSearchService>();
         services.AddSingleton<IClock, SystemClock>();
 
         // HTTP-клиент и зависимые от него сервисы.

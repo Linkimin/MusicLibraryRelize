@@ -102,6 +102,7 @@ public sealed class DefaultMetadataResolver : IMetadataResolver
         {
             Title = title.Trim(),
             Artist = artist.Trim(),
+            Album = (tag.Album ?? string.Empty).Trim(),
             Genre = _genreNormalizer.Normalize(rawGenre),
             Duration = tag.Duration,
             CoverFromTag = tag.CoverBytes,

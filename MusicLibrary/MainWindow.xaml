@@ -11,14 +11,22 @@
         Background="{StaticResource BackgroundBrush}">
     <Window.InputBindings>
         <KeyBinding Key="Space" Command="{Binding PlayPauseCommand}" />
-        <!-- Slider/ListBox перехватывают стрелки, когда фокус находится внутри этих контролов. -->
-        <KeyBinding Key="Left" Command="{Binding SkipBackwardCommand}" />
-        <KeyBinding Key="Right" Command="{Binding SkipForwardCommand}" />
-        <KeyBinding Key="Left" Modifiers="Control" Command="{Binding PreviousTrackCommand}" />
+        <!-- Все буквенные хоткеи — с Ctrl, чтобы не блокировать ввод этих букв
+             в поле поиска и других TextBox-ах (в русской раскладке R=К, M=Ь). -->
+        <KeyBinding Key="M" Modifiers="Control" Command="{Binding ToggleMuteCommand}" />
+        <KeyBinding Key="R" Modifiers="Control" Command="{Binding CycleRepeatModeCommand}" />
+        <KeyBinding Key="F" Modifiers="Control" Command="ApplicationCommands.Find" />
+        <KeyBinding Key="T" Modifiers="Control" Command="{Binding OpenStatsCommand}" />
+        <!-- Стрелки только с модификаторами: иначе их перехватывает ListBox треков
+             (стрелки вверх/вниз/влево/вправо для навигации) или Slider громкости/seek. -->
+        <KeyBinding Key="Left"  Modifiers="Shift"   Command="{Binding SkipBackwardCommand}" />
+        <KeyBinding Key="Right" Modifiers="Shift"   Command="{Binding SkipForwardCommand}" />
+        <KeyBinding Key="Left"  Modifiers="Control" Command="{Binding PreviousTrackCommand}" />
         <KeyBinding Key="Right" Modifiers="Control" Command="{Binding NextTrackCommand}" />
-        <KeyBinding Key="M" Command="{Binding ToggleMuteCommand}" />
-        <KeyBinding Key="R" Command="{Binding CycleRepeatModeCommand}" />
     </Window.InputBindings>
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Find" Executed="OnFindCommandExecuted" />
+    </Window.CommandBindings>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -29,6 +37,7 @@
         <Border Background="{StaticResource CardOverlayBrush}" BorderBrush="{StaticResource GoldBorderBrush}" BorderThickness="0,0,0,1" Padding="28,18">
             <DockPanel VerticalAlignment="Center">
                 <Button DockPanel.Dock="Right" Content="＋ Добавить трек" Command="{Binding AddTrackCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Padding="18,0" />
+                <Button DockPanel.Dock="Right" Content="Статистика" Command="{Binding OpenStatsCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Padding="18,0" Margin="0,0,12,0" ToolTip="Ctrl+T" />
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Width="54"
                            Height="54"
@@ -52,6 +61,14 @@
 
             <Border Grid.Column="0" Background="#4D16161F" BorderBrush="{StaticResource GoldBorderBrush}" BorderThickness="0,0,1,0">
                 <DockPanel Margin="24">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                        <TextBlock Text="Поиск" Foreground="{StaticResource ForegroundBrush}" FontWeight="SemiBold" FontSize="18" Margin="0,0,0,10" />
+                        <TextBox x:Name="SearchBox"
+                                 Style="{StaticResource SearchTextBoxStyle}"
+                                 Tag="Название, исполнитель, альбом, жанр…   (Ctrl+F)"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
+                                 KeyDown="OnSearchBoxKeyDown" />
+                    </StackPanel>
                     <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
                         <TextBlock Text="Фильтр по жанру" Foreground="{StaticResource ForegroundBrush}" FontWeight="SemiBold" FontSize="18" Margin="0,0,0,10" />
                         <ComboBox ItemsSource="{Binding Genres}"

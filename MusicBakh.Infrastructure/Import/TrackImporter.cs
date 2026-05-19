@@ -67,6 +67,7 @@ public sealed class TrackImporter : ITrackImporter
                 CoverFilePath = coverPath,
                 Title = string.IsNullOrWhiteSpace(metadata.Title) ? filenameHint : metadata.Title,
                 Artist = metadata.Artist,
+                Album = metadata.Album,
                 Genre = metadata.Genre,
                 Duration = metadata.Duration
             });
