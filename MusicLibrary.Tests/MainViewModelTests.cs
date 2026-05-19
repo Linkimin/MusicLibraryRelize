@@ -786,6 +786,27 @@ public sealed class MainViewModelTests
         public IReadOnlyList<PlaybackEntry> GetRecent(int limit = 50)
             => _entries.OrderByDescending(e => e.PlayedAt).Take(limit).ToList();
 
+        public IReadOnlyList<PlaybackEntry> GetAll()
+            => _entries.OrderByDescending(e => e.PlayedAt).ToList();
+
+        public IReadOnlyList<ListeningStats> GetTop(int limit = 50)
+            => _entries
+                .GroupBy(e => e.Track.Id)
+                .Select(g => new ListeningStats(g.First().Track, g.Count(), g.Max(e => e.PlayedAt)))
+                .OrderByDescending(s => s.PlayCount)
+                .Take(limit)
+                .ToList();
+
+        public IReadOnlyList<PlaybackEntry> GetRecentUnique(int limit = 50)
+            => _entries
+                .GroupBy(e => e.Track.Id)
+                .Select(g => g.OrderByDescending(e => e.PlayedAt).First())
+                .OrderByDescending(e => e.PlayedAt)
+                .Take(limit)
+                .ToList();
+
+        public IReadOnlyList<Track> GetNeverPlayed() => Array.Empty<Track>();
+
         public void Append(PlaybackEntry entry) => _entries.Add(entry);
     }
 
