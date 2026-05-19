@@ -1,4 +1,6 @@
-namespace MusicLibrary.Services.Covers;
+using MusicBakh.Application.Contracts;
+
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Последняя ступень каскада обложек — рисует заглушку, если онлайн-источники не нашли картинку.

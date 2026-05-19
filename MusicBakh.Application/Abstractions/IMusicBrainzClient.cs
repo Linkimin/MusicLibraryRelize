@@ -1,4 +1,6 @@
-namespace MusicLibrary.Services.Metadata;
+using MusicBakh.Application.Contracts;
+
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Клиент REST API MusicBrainz для уточнения исполнителя и жанра по названию записи.

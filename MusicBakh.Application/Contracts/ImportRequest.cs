@@ -1,4 +1,4 @@
-namespace MusicLibrary.Services.Import;
+namespace MusicBakh.Application.Contracts;
 
 /// <summary>
 /// Источник трека для импорта. Реализован через discriminated union на record-наследниках,

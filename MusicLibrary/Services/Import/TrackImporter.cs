@@ -1,6 +1,5 @@
-using MusicLibrary.Models;
-using MusicLibrary.Services.Covers;
-using MusicLibrary.Services.Metadata;
+using MusicBakh.Application.Abstractions;
+using MusicBakh.Application.Contracts;
 using MusicLibrary.Services.Storage;
 using System.IO;
 using System.Net.Http;

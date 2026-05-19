@@ -1,4 +1,4 @@
-namespace MusicLibrary.Services.Metadata;
+namespace MusicBakh.Application.Contracts;
 
 public sealed class ResolvedMetadata
 {

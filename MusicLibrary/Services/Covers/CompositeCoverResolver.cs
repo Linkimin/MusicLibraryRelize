@@ -1,4 +1,5 @@
-using MusicLibrary.Services.Metadata;
+using MusicBakh.Application.Abstractions;
+using MusicBakh.Application.Contracts;
 
 namespace MusicLibrary.Services.Covers;
 

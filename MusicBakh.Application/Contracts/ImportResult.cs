@@ -1,6 +1,4 @@
-using MusicLibrary.Models;
-
-namespace MusicLibrary.Services.Import;
+namespace MusicBakh.Application.Contracts;
 
 public sealed class ImportResult
 {

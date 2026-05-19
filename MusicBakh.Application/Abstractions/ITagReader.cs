@@ -1,4 +1,6 @@
-namespace MusicLibrary.Services.Metadata;
+using MusicBakh.Application.Contracts;
+
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Читает ID3-теги (или их аналоги для wav) из локального аудиофайла.

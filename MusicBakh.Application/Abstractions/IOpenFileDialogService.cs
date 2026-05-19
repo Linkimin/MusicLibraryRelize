@@ -1,4 +1,4 @@
-namespace MusicLibrary.Services.Files;
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Абстракция стандартного диалога открытия аудиофайла. Возвращает null,

@@ -1,6 +1,6 @@
 using MusicBakh.Core.Domain;
 
-namespace MusicLibrary.Services.Files;
+namespace MusicBakh.Application.Abstractions;
 
 public interface IFileService
 {

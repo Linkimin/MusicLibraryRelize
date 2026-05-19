@@ -1,4 +1,4 @@
-namespace MusicLibrary.Services.Metadata;
+namespace MusicBakh.Application.Contracts;
 
 /// <summary>
 /// Сводка ID3-тегов аудиофайла. Любое поле может быть пустым, если в файле тег отсутствует.

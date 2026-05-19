@@ -1,4 +1,4 @@
-namespace MusicLibrary.Services.Metadata;
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Сводит англоязычные жанры внешних API к русским, чтобы фильтр библиотеки

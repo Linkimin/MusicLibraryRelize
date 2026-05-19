@@ -1,4 +1,4 @@
-namespace MusicLibrary.Services.Covers;
+namespace MusicBakh.Application.Contracts;
 
 public sealed class ResolvedCover
 {

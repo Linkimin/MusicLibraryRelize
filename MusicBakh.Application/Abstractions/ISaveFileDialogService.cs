@@ -1,4 +1,4 @@
-namespace MusicLibrary.Services.Files;
+namespace MusicBakh.Application.Abstractions;
 
 public interface ISaveFileDialogService
 {

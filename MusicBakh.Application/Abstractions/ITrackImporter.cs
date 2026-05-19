@@ -1,4 +1,6 @@
-namespace MusicLibrary.Services.Import;
+using MusicBakh.Application.Contracts;
+
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Полный pipeline добавления нового трека: получить файл (локально или по URL),

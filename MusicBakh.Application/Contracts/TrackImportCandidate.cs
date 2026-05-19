@@ -1,4 +1,4 @@
-namespace MusicLibrary.Models;
+namespace MusicBakh.Application.Contracts;
 
 /// <summary>
 /// Промежуточный объект между импортёром и формой подтверждения. К моменту его

@@ -1,4 +1,4 @@
-namespace MusicLibrary.Services.Files;
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Абстракция диалога подтверждения. Нужна, чтобы ViewModel не вызывал MessageBox напрямую —

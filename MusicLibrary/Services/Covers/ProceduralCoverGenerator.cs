@@ -1,3 +1,5 @@
+using MusicBakh.Application.Abstractions;
+using MusicBakh.Application.Contracts;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;

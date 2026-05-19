@@ -1,4 +1,6 @@
-namespace MusicLibrary.Services.Covers;
+using MusicBakh.Application.Contracts;
+
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Клиент iTunes Search API (бесплатный, без ключа). Используется и для обложки,

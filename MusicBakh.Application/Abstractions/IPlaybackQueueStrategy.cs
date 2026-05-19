@@ -1,6 +1,6 @@
 using MusicBakh.Core.Domain;
 
-namespace MusicLibrary.Services.Playback;
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Решает, какой трек запускается после завершения текущего.

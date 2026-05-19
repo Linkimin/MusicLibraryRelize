@@ -1,6 +1,6 @@
 using MusicBakh.Core.Domain;
 
-namespace MusicLibrary.Services.Playback;
+namespace MusicBakh.Application.Abstractions;
 
 public interface IAudioPlayerService : IDisposable
 {

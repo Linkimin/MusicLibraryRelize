@@ -1,6 +1,6 @@
-using MusicLibrary.Services.Metadata;
+using MusicBakh.Application.Contracts;
 
-namespace MusicLibrary.Services.Covers;
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Точка входа в каскад источников обложки. Гарантирует ненулевой результат:

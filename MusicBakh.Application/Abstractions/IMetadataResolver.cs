@@ -1,4 +1,6 @@
-namespace MusicLibrary.Services.Metadata;
+using MusicBakh.Application.Contracts;
+
+namespace MusicBakh.Application.Abstractions;
 
 /// <summary>
 /// Точка входа в каскад источников метаданных. Принимает путь к файлу и подсказку
