@@ -16,10 +16,12 @@ public sealed class LibraryDbContext : DbContext
 
     internal DbSet<TrackEntity> Tracks => Set<TrackEntity>();
     internal DbSet<ListeningHistoryEntryEntity> ListeningHistory => Set<ListeningHistoryEntryEntity>();
+    internal DbSet<KeyValueEntryEntity> KeyValueStore => Set<KeyValueEntryEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new TrackEntityConfiguration());
         modelBuilder.ApplyConfiguration(new ListeningHistoryEntryConfiguration());
+        modelBuilder.ApplyConfiguration(new KeyValueEntryConfiguration());
     }
 }
