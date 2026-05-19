@@ -204,3 +204,11 @@
 Подробный чеклист релиза — [release-checklist.md](release-checklist.md).
 
 Функция проекта не меняется: устанавливаются те же бинарники, что собираются в Debug-конфигурации, плюс эталонные треки и обложки.
+
+## 1.1.0-A — SQLite и слоистая архитектура
+
+- Замена `userTracks.json` на SQLite через EF Core 10.0.8: данные хранятся в `%LocalAppData%\MusicLibrary\library.db`, схема управляется тремя миграциями (`AddLibrarySchema`, `AddListeningHistory`, `AddKeyValueStore`).
+- Разбиение монолитного WPF-проекта на 4: `MusicBakh.Core` (доменные сущности и абстракции), `MusicBakh.Application` (интерфейсы сервисов use-case), `MusicBakh.Infrastructure` (SQLite-репозитории, HTTP-клиенты, файловая система), `MusicLibrary` (WPF-хост).
+- DI-композиция через `Microsoft.Extensions.Hosting` вместо ручной сборки зависимостей в `MainWindow.xaml.cs`: весь бутстрап перенесён в `App.OnStartup` с расширениями `AddMusicBakhInfrastructure` и `AddMusicBakhPresentation`.
+- История воспроизведения и настройки плеера переехали в SQLite (таблицы `ListeningHistory` и `KeyValueStore`), убрав зависимость от отдельного `player-settings.json` в `%LocalAppData%\MusicBakh\`.
+- Автоматическая миграция с 1.0.0 через `JsonToSqliteMigrationService`: при первом запуске после апгрейда копирует записи из `userTracks.json` в таблицу `Tracks`, затем переименовывает файл в `userTracks.json.backup-<timestamp>`; операция идемпотентна.
