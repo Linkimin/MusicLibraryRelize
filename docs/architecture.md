@@ -1,10 +1,10 @@
 # Архитектура MusicBakh
 
-Документ описывает фактическое устройство приложения по состоянию исходного кода версии 1.1.0.
+Документ описывает фактическое устройство приложения по состоянию исходного кода версии 1.0.1 (итерация A эпика «Library 2.0», финальный минор которого выйдет как 1.1.0).
 
 ## Обзор
 
-- **Версия:** 1.1.0 (в разработке).
+- **Версия:** 1.0.1.
 - **Платформа:** WPF, .NET 10 (`net10.0-windows` для Presentation; `net10.0` для остальных слоёв), C# 14, nullable enabled, ImplicitUsings.
 - **Проекты:**
   - `MusicBakh.Core` — доменные сущности и абстракции репозиториев.
@@ -129,7 +129,7 @@ MusicLibrary/
 ├── Services/
 │   ├── Playback/MediaPlayerAudioService.cs   — WPF MediaPlayer
 │   ├── Covers/ProceduralCoverGenerator.cs    — градиентная заглушка обложки
-│   ├── Storage/                              — устаревшие JSON-адаптеры (не используются в 1.1.0)
+│   ├── Storage/                              — устаревшие JSON-адаптеры (не используются с 1.0.1)
 │   ├── Tracks/CompositeTrackRepository.cs    — объединяет встроенные и пользовательские
 │   └── Files/                               — OpenFileDialogService, SaveFileDialogService
 ├── Commands/RelayCommand.cs
@@ -272,7 +272,7 @@ SelectedTrack ─── PlayPauseCommand ──▶ MediaPlayerAudioService.Open(
 
 ## Тестирование
 
-Единственный тестовый проект — `MusicLibrary.Tests` (xUnit). По состоянию версии 1.1.0-A: **124 теста**.
+Единственный тестовый проект — `MusicLibrary.Tests` (xUnit). По состоянию версии 1.0.1: **125 тестов**.
 
 - **SQLite-репозитории** (`SqliteTrackRepositoryTests`, `SqliteListeningHistoryRepositoryTests`, `SqlitePlayerSettingsRepositoryTests`) — работают поверх in-memory SQLite через [`InMemorySqliteDbContextFactory`](../MusicLibrary.Tests/TestSupport/InMemorySqliteDbContextFactory.cs).
 - **Миграция** (`JsonToSqliteMigrationServiceTests`) — проверяет перенос записей из JSON в SQLite и переименование файла.

@@ -36,7 +36,7 @@
 
 Пользовательские данные хранятся в:
 
-- `%LocalAppData%\MusicLibrary\library.db` — SQLite-база с треками, историей и настройками плеера (заменила `userTracks.json` начиная с 1.1.0).
+- `%LocalAppData%\MusicLibrary\library.db` — SQLite-база с треками, историей и настройками плеера (заменила `userTracks.json` начиная с 1.0.1).
 - `%LocalAppData%\MusicLibrary\Music\` — импортированные аудиофайлы.
 - `%LocalAppData%\MusicLibrary\Covers\` — обложки.
 - `%LocalAppData%\MusicLibrary\userTracks.json.backup-<timestamp>` — резервная копия старого индекса, появляется только при первом запуске после апгрейда с 1.0.x; можно удалить вручную.

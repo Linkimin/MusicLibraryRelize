@@ -205,7 +205,7 @@
 
 Функция проекта не меняется: устанавливаются те же бинарники, что собираются в Debug-конфигурации, плюс эталонные треки и обложки.
 
-## 1.1.0-A — SQLite и слоистая архитектура
+## 1.0.1 — SQLite и слоистая архитектура (итерация A на пути к минору 1.1.0)
 
 - Замена `userTracks.json` на SQLite через EF Core 10.0.8: данные хранятся в `%LocalAppData%\MusicLibrary\library.db`, схема управляется тремя миграциями (`AddLibrarySchema`, `AddListeningHistory`, `AddKeyValueStore`).
 - Разбиение монолитного WPF-проекта на 4: `MusicBakh.Core` (доменные сущности и абстракции), `MusicBakh.Application` (интерфейсы сервисов use-case), `MusicBakh.Infrastructure` (SQLite-репозитории, HTTP-клиенты, файловая система), `MusicLibrary` (WPF-хост).
