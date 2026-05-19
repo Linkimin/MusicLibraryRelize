@@ -24,4 +24,8 @@
     <ProjectReference Include="..\MusicBakh.Application\MusicBakh.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="MusicLibrary.Tests" />
+  </ItemGroup>
+
 </Project>
