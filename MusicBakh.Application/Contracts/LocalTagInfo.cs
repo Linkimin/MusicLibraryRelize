@@ -7,6 +7,7 @@ public sealed class LocalTagInfo
 {
     public string Title { get; init; } = string.Empty;
     public string Artist { get; init; } = string.Empty;
+    public string Album { get; init; } = string.Empty;
     public string Genre { get; init; } = string.Empty;
     public TimeSpan Duration { get; init; }
     public byte[]? CoverBytes { get; init; }

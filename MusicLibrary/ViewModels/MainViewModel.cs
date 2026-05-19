@@ -311,6 +311,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             Title = candidate.Title,
             Artist = candidate.Artist,
+            Album = candidate.Album,
             Genre = candidate.Genre,
             Duration = candidate.Duration,
             FilePath = candidate.AudioFilePath,

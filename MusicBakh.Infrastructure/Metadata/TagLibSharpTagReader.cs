@@ -17,6 +17,7 @@ public sealed class TagLibSharpTagReader : ITagReader
 
             string title = file.Tag.Title ?? string.Empty;
             string artist = file.Tag.FirstPerformer ?? file.Tag.JoinedPerformers ?? string.Empty;
+            string album = file.Tag.Album ?? string.Empty;
             string genre = file.Tag.FirstGenre ?? string.Empty;
             TimeSpan duration = file.Properties?.Duration ?? TimeSpan.Zero;
 
@@ -33,6 +34,7 @@ public sealed class TagLibSharpTagReader : ITagReader
             {
                 Title = title,
                 Artist = artist,
+                Album = album,
                 Genre = genre,
                 Duration = duration,
                 CoverBytes = coverBytes,
