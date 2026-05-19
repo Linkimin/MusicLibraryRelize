@@ -8,8 +8,15 @@ namespace MusicBakh.Core.Abstractions;
 /// </summary>
 public interface ITrackRepository
 {
+    /// <summary>
+    /// Возвращает все треки библиотеки. Порядок реализация определяет сама
+    /// (встроенные обычно идут первыми), стабильность гарантируется в пределах одного вызова.
+    /// </summary>
     IReadOnlyList<Track> GetAll();
 
+    /// <summary>
+    /// Ищет трек по идентификатору. Возвращает null, если трек не найден.
+    /// </summary>
     Track? FindById(int id);
 
     /// <summary>
@@ -17,5 +24,9 @@ public interface ITrackRepository
     /// </summary>
     Track Add(Track track);
 
+    /// <summary>
+    /// Удаляет трек из библиотеки. Если трека с таким Id нет — тихо ничего не делает.
+    /// Удаление встроенных seed-треков не поддерживается и должно бросать NotSupportedException.
+    /// </summary>
     void Remove(int id);
 }

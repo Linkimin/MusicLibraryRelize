@@ -28,7 +28,7 @@ public sealed class InMemoryTrackRepository : ITrackRepository
     public void Remove(int id) =>
         throw new NotSupportedException("Seed-репозиторий встроенных треков не поддерживает удаление.");
 
-    private static IReadOnlyList<Track> BuildSeed()
+    internal static IReadOnlyList<Track> BuildSeed()
     {
         string musicFolder = Path.Combine(AppContext.BaseDirectory, "Music");
         string coversFolder = Path.Combine(AppContext.BaseDirectory, "Covers");

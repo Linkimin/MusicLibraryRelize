@@ -56,6 +56,8 @@ public sealed class CompositeTrackRepository : ITrackRepository
         return result;
     }
 
+    // Допустимое решение, пока CompositeTrackRepository не заменён SqliteTrackRepository в Task 11:
+    // FindById вызывает GetAll и просматривает результат — на текущих объёмах библиотеки накладные расходы пренебрежимы.
     public Track? FindById(int id) => GetAll().FirstOrDefault(t => t.Id == id);
 
     public Track Add(Track track) =>
