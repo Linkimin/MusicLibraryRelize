@@ -2,7 +2,6 @@ using MusicBakh.Application.Abstractions;
 using MusicBakh.Application.Contracts;
 using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
-using MusicBakh.Infrastructure.Migration.Legacy;
 using MusicBakh.Infrastructure.Playback;
 using MusicLibrary.Commands;
 using MusicLibrary.Views;
@@ -10,8 +9,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Input;
 using System.Windows.Threading;
-
-#pragma warning disable CS0618 // MainViewModel использует legacy-типы до замены на DI в Task 16.
 
 namespace MusicLibrary.ViewModels;
 
@@ -21,13 +18,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private const int MaxHistoryItems = 50;
 
     private readonly List<Track> _allTracks;
+    private readonly ITrackRepository _trackRepository;
     private readonly IFileService _fileService;
     private readonly ISaveFileDialogService _saveFileDialogService;
     private readonly IAudioPlayerService _audioPlayerService;
     private readonly IAddTrackDialogService? _addTrackDialogService;
-    private readonly IUserTrackStorage? _userTrackStorage;
     private readonly IConfirmationService? _confirmationService;
-    private readonly IPlayerSettingsStorage? _playerSettingsStorage;
+    private readonly IListeningHistoryRepository _listeningHistoryRepository;
+    private readonly IPlayerSettingsRepository _playerSettingsRepository;
     private readonly DispatcherTimer _progressTimer;
 
     private string _selectedGenre = AllGenres;
@@ -50,18 +48,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IFileService fileService,
         ISaveFileDialogService saveFileDialogService,
         IAudioPlayerService audioPlayerService,
+        IListeningHistoryRepository listeningHistoryRepository,
+        IPlayerSettingsRepository playerSettingsRepository,
         IAddTrackDialogService? addTrackDialogService = null,
-        IUserTrackStorage? userTrackStorage = null,
-        IConfirmationService? confirmationService = null,
-        IPlayerSettingsStorage? playerSettingsStorage = null)
+        IConfirmationService? confirmationService = null)
     {
+        _trackRepository = trackRepository;
         _fileService = fileService;
         _saveFileDialogService = saveFileDialogService;
         _audioPlayerService = audioPlayerService;
+        _listeningHistoryRepository = listeningHistoryRepository;
+        _playerSettingsRepository = playerSettingsRepository;
         _addTrackDialogService = addTrackDialogService;
-        _userTrackStorage = userTrackStorage;
         _confirmationService = confirmationService;
-        _playerSettingsStorage = playerSettingsStorage;
 
         _allTracks = new List<Track>(trackRepository.GetAll());
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
@@ -70,10 +69,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             new[] { AllGenres }
                 .Concat(_allTracks.Select(track => track.Genre).Distinct().OrderBy(genre => genre)));
 
+        foreach (var entry in _listeningHistoryRepository.GetRecent(MaxHistoryItems))
+        {
+            PlaybackHistory.Add(entry);
+        }
+
         PlayPauseCommand = new RelayCommand(_ => PlayOrPause(), _ => SelectedTrack is not null);
         StopCommand = new RelayCommand(_ => Stop(), _ => PlayingTrack is not null);
         SaveTrackCommand = new RelayCommand(_ => SaveSelectedTrack(), _ => SelectedTrack is not null);
-        AddTrackCommand = new RelayCommand(_ => OpenAddTrackDialog(), _ => _addTrackDialogService is not null && _userTrackStorage is not null);
+        AddTrackCommand = new RelayCommand(_ => OpenAddTrackDialog(), _ => _addTrackDialogService is not null);
         DeleteTrackCommand = new RelayCommand(_ => DeleteSelectedTrack(), _ => CanDeleteSelected);
         PlayTrackCommand = new RelayCommand(
             parameter => PlaySpecificTrack(parameter as Track),
@@ -166,18 +170,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public bool HasSelectedTrack => SelectedTrack is not null;
 
     public bool CanDeleteSelected =>
-        SelectedTrack is not null
-        && _userTrackStorage is not null
-        && IsUserTrack(SelectedTrack);
+        SelectedTrack is not null && IsUserTrack(SelectedTrack);
 
-    private bool IsUserTrack(Track track)
-    {
-        if (_userTrackStorage is null || string.IsNullOrEmpty(track.FilePath))
-        {
-            return false;
-        }
-        return track.FilePath.StartsWith(_userTrackStorage.MusicDirectory, StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsUserTrack(Track track) => !track.IsBuiltIn;
 
     public bool IsSelectedPlaying =>
         SelectedTrack is not null
@@ -301,7 +296,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void OpenAddTrackDialog()
     {
-        if (_addTrackDialogService is null || _userTrackStorage is null)
+        if (_addTrackDialogService is null)
         {
             return;
         }
@@ -312,26 +307,25 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var track = new Track
+        Track saved = _trackRepository.Add(new Track
         {
-            Id = GetNextTrackId(),
             Title = candidate.Title,
             Artist = candidate.Artist,
             Genre = candidate.Genre,
             Duration = candidate.Duration,
             FilePath = candidate.AudioFilePath,
-            CoverPath = candidate.CoverFilePath
-        };
+            CoverPath = candidate.CoverFilePath,
+            IsBuiltIn = false
+        });
 
-        _userTrackStorage.Append(UserTrack.FromTrack(track, DateTime.Now));
-        AddTrack(track);
-        SetStatus(OperationResult.Success($"Трек «{track.Title}» добавлен в библиотеку."));
+        AddTrack(saved);
+        SetStatus(OperationResult.Success($"Трек «{saved.Title}» добавлен в библиотеку."));
     }
 
     private void DeleteSelectedTrack()
     {
         Track? track = SelectedTrack;
-        if (track is null || _userTrackStorage is null || !IsUserTrack(track))
+        if (track is null || !IsUserTrack(track))
         {
             return;
         }
@@ -352,9 +346,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             ResetPlaybackState();
         }
 
-        _userTrackStorage.Delete(track.Id);
+        _trackRepository.Remove(track.Id);
+        _fileService.Delete(track.FilePath);
+        _fileService.Delete(track.CoverPath);
         RemoveTrack(track);
-        SetStatus(OperationResult.Success($"Трек «{track.Title}» удален."));
+        SetStatus(OperationResult.Success($"Трек «{track.Title}» удалён."));
     }
 
     private void RemoveTrack(Track track)
@@ -639,8 +635,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void AddToHistory(Track track)
     {
-        PlaybackHistory.Insert(0, new PlaybackEntry { Track = track, PlayedAt = DateTime.Now });
+        var entry = new PlaybackEntry { Track = track, PlayedAt = DateTime.Now };
+        _listeningHistoryRepository.Append(entry);
 
+        PlaybackHistory.Insert(0, entry);
         while (PlaybackHistory.Count > MaxHistoryItems)
         {
             PlaybackHistory.RemoveAt(PlaybackHistory.Count - 1);
@@ -766,7 +764,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void PersistSettings()
     {
-        _playerSettingsStorage?.Save(new PlayerSettings(_volume, _isMuted, _repeatMode));
+        _playerSettingsRepository.Save(new PlayerSettings(_volume, _isMuted, _repeatMode));
     }
 
     public void Dispose()
@@ -775,5 +773,3 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _audioPlayerService.Dispose();
     }
 }
-
-#pragma warning restore CS0618

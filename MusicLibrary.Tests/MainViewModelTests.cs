@@ -1,12 +1,9 @@
 using MusicBakh.Application.Abstractions;
 using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
-using MusicBakh.Infrastructure.Migration.Legacy;
 using MusicLibrary.ViewModels;
 using System.IO;
 using System.Reflection;
-
-#pragma warning disable CS0618 // Тест использует legacy IPlayerSettingsStorage через FakePlayerSettingsStorage.
 
 namespace MusicLibrary.Tests;
 
@@ -520,33 +517,33 @@ public sealed class MainViewModelTests
     [Fact]
     public void Volume_Setter_UpdatesPlayerAndSaves()
     {
-        var (viewModel, player, storage) = CreateViewModelWithPlayer();
+        var (viewModel, player, repo) = CreateViewModelWithPlayer();
 
         viewModel.Volume = 0.42;
 
         Assert.Equal(0.42, player.Volume);
-        Assert.Contains(storage.SavedSnapshots, s => s.Volume == 0.42);
+        Assert.Contains(repo.SavedSnapshots, s => s.Volume == 0.42);
     }
 
     [Fact]
     public void IsMuted_Setter_UpdatesPlayerAndSaves()
     {
-        var (viewModel, player, storage) = CreateViewModelWithPlayer();
+        var (viewModel, player, repo) = CreateViewModelWithPlayer();
 
         viewModel.IsMuted = true;
 
         Assert.True(player.IsMuted);
-        Assert.Contains(storage.SavedSnapshots, s => s.IsMuted);
+        Assert.Contains(repo.SavedSnapshots, s => s.IsMuted);
     }
 
     [Fact]
     public void RepeatMode_Setter_Saves()
     {
-        var (viewModel, _, storage) = CreateViewModelWithPlayer();
+        var (viewModel, _, repo) = CreateViewModelWithPlayer();
 
         viewModel.RepeatMode = RepeatMode.Library;
 
-        Assert.Contains(storage.SavedSnapshots, s => s.RepeatMode == RepeatMode.Library);
+        Assert.Contains(repo.SavedSnapshots, s => s.RepeatMode == RepeatMode.Library);
     }
 
     [Fact]
@@ -703,27 +700,27 @@ public sealed class MainViewModelTests
         FakeAudioPlayerService player,
         FakeFileService fileService)
     {
-        return CreateViewModel(tracks, player, fileService, new FakePlayerSettingsStorage());
+        return CreateViewModel(tracks, player, fileService, new FakePlayerSettingsRepository());
     }
 
     private static MainViewModel CreateViewModel(
         IReadOnlyList<Track> tracks,
         FakeAudioPlayerService player,
         FakeFileService fileService,
-        FakePlayerSettingsStorage storage)
+        FakePlayerSettingsRepository repo)
     {
         return new MainViewModel(
             new FakeTrackRepository(tracks),
             fileService,
             new FakeSaveFileDialogService(),
             player,
+            new FakeListeningHistoryRepository(),
+            repo,
             addTrackDialogService: null,
-            userTrackStorage: null,
-            confirmationService: null,
-            playerSettingsStorage: storage);
+            confirmationService: null);
     }
 
-    private static (MainViewModel ViewModel, FakeAudioPlayerService Player, FakePlayerSettingsStorage Storage) CreateViewModelWithPlayer()
+    private static (MainViewModel ViewModel, FakeAudioPlayerService Player, FakePlayerSettingsRepository Repo) CreateViewModelWithPlayer()
     {
         var tracks = new[]
         {
@@ -732,10 +729,10 @@ public sealed class MainViewModelTests
         };
 
         var player = new FakeAudioPlayerService();
-        var storage = new FakePlayerSettingsStorage();
-        var viewModel = CreateViewModel(tracks, player, new FakeFileService(), storage);
+        var repo = new FakePlayerSettingsRepository();
+        var viewModel = CreateViewModel(tracks, player, new FakeFileService(), repo);
 
-        return (viewModel, player, storage);
+        return (viewModel, player, repo);
     }
 
     private sealed class FakeTrackRepository : ITrackRepository
@@ -765,6 +762,7 @@ public sealed class MainViewModelTests
         public bool Exists(string path) => !_missingPaths.Contains(path);
         public OperationResult Copy(string sourcePath, string targetPath, bool overwrite) => OperationResult.Success("saved");
         public string GetFileName(string path) => Path.GetFileName(path) ?? "track.mp3";
+        public OperationResult Delete(string path) => OperationResult.Success("deleted");
     }
 
     private sealed class FakeSaveFileDialogService : ISaveFileDialogService
@@ -772,13 +770,23 @@ public sealed class MainViewModelTests
         public string? PickSavePath(string suggestedFileName) => Path.Combine(Path.GetTempPath(), suggestedFileName);
     }
 
-    private sealed class FakePlayerSettingsStorage : IPlayerSettingsStorage
+    private sealed class FakePlayerSettingsRepository : IPlayerSettingsRepository
     {
         public PlayerSettings Loaded { get; set; } = PlayerSettings.Default;
         public List<PlayerSettings> SavedSnapshots { get; } = new();
 
         public PlayerSettings Load() => Loaded;
         public void Save(PlayerSettings settings) => SavedSnapshots.Add(settings);
+    }
+
+    private sealed class FakeListeningHistoryRepository : IListeningHistoryRepository
+    {
+        private readonly List<PlaybackEntry> _entries = new();
+
+        public IReadOnlyList<PlaybackEntry> GetRecent(int limit = 50)
+            => _entries.OrderByDescending(e => e.PlayedAt).Take(limit).ToList();
+
+        public void Append(PlaybackEntry entry) => _entries.Add(entry);
     }
 
     private sealed class FakeAudioPlayerService : IAudioPlayerService
@@ -840,5 +848,3 @@ public sealed class MainViewModelTests
         public void RaiseFailedForTest(string message) => MediaFailed?.Invoke(this, message);
     }
 }
-
-#pragma warning restore CS0618

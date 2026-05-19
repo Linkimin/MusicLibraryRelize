@@ -41,4 +41,26 @@ public sealed class FileService : IFileService
     {
         return Path.GetFileName(path) ?? "track.mp3";
     }
+
+    public OperationResult Delete(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return OperationResult.Info("Файл уже отсутствует.");
+        }
+
+        try
+        {
+            File.Delete(path);
+            return OperationResult.Success("Файл удалён.");
+        }
+        catch (IOException ex)
+        {
+            return OperationResult.Error($"Не удалось удалить файл (занят?): {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return OperationResult.Error($"Нет доступа к файлу: {ex.Message}");
+        }
+    }
 }

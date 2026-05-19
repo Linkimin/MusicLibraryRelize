@@ -1,18 +1,8 @@
-using MusicBakh.Infrastructure.Covers;
-using MusicBakh.Infrastructure.FileSystem;
-using MusicBakh.Infrastructure.Import;
-using MusicBakh.Infrastructure.Metadata;
-using MusicBakh.Core.Domain;
-using MusicLibrary.Services.Covers;
-using MusicLibrary.Services.Files;
-using MusicLibrary.Services.Playback;
-using MusicLibrary.Services.Tracks;
-using MusicLibrary.ViewModels;
-using MusicLibrary.Views;
-using System.Net.Http;
 using System.Windows;
 using System.Windows.Input;
-using MusicBakh.Application.Abstractions;
+using MusicBakh.Core.Abstractions;
+using MusicBakh.Core.Domain;
+using MusicLibrary.ViewModels;
 
 namespace MusicLibrary;
 
@@ -20,59 +10,18 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel;
 
-    public MainWindow()
+    public MainWindow(MainViewModel viewModel, IPlayerSettingsRepository playerSettingsRepository)
     {
         InitializeComponent();
         SourceInitialized += OnSourceInitialized;
 
-        // В учебной работе логика располагалась в окне. Здесь окно только собирает зависимости,
-        // а сценарии приложения выполняет MainViewModel через сервисы.
-#pragma warning disable CS0618 // Legacy storage используется только до Task 16, где DI заменит ручную сборку.
-        var storage = new MusicBakh.Infrastructure.Migration.Legacy.JsonUserTrackStorage();
-        var repository = new CompositeTrackRepository(new InMemoryTrackRepository(), storage);
+        _viewModel = viewModel;
 
-        var sharedHttpClient = new HttpClient();
-        var musicBrainz = new MusicBrainzClient(sharedHttpClient);
-        var tagReader = new TagLibSharpTagReader();
-        var genreNormalizer = new RussianGenreNormalizer();
-        var itunesClient = new ItunesCoverClient(sharedHttpClient);
-        var metadataResolver = new DefaultMetadataResolver(tagReader, musicBrainz, itunesClient, genreNormalizer);
-
-        var procedural = new ProceduralCoverGenerator();
-        var coverResolver = new CompositeCoverResolver(itunesClient, procedural);
-
-        var paths = new LocalAppDataMusicStoragePaths();
-        var importer = new TrackImporter(paths, metadataResolver, coverResolver, sharedHttpClient);
-        var openFileDialog = new OpenFileDialogService();
-        var addTrackDialog = new AddTrackDialogService(openFileDialog, importer);
-
-        // Поднимаем настройки плеера до создания плеера и ViewModel —
-        // громкость и mute должны примениться до первой команды Play.
-        var playerSettingsStorage = new MusicBakh.Infrastructure.Migration.Legacy.JsonPlayerSettingsStorage(MusicBakh.Infrastructure.Migration.Legacy.JsonPlayerSettingsStorage.DefaultPath);
-        PlayerSettings playerSettings = playerSettingsStorage.Load();
-#pragma warning restore CS0618
-
-        var audioPlayerService = new MediaPlayerAudioService();
-        audioPlayerService.Volume = playerSettings.Volume;
-        audioPlayerService.IsMuted = playerSettings.IsMuted;
-
-#pragma warning disable CS0618 // Legacy storage используется только до Task 16, где DI заменит ручную сборку.
-        _viewModel = new MainViewModel(
-            repository,
-            new FileService(),
-            new SaveFileDialogService(),
-            audioPlayerService,
-            addTrackDialog,
-            storage,
-            new ConfirmationDialogService(),
-            playerSettingsStorage);
-#pragma warning restore CS0618
-
-        // Гидратируем ViewModel тем же снимком настроек: сеттеры могут сделать
-        // несколько маленьких повторных сохранений, зато финальная запись согласована.
-        _viewModel.Volume = playerSettings.Volume;
-        _viewModel.IsMuted = playerSettings.IsMuted;
-        _viewModel.RepeatMode = playerSettings.RepeatMode;
+        // Гидратируем ViewModel сохранёнными настройками плеера (громкость, mute, режим повтора).
+        var settings = playerSettingsRepository.Load();
+        _viewModel.Volume = settings.Volume;
+        _viewModel.IsMuted = settings.IsMuted;
+        _viewModel.RepeatMode = settings.RepeatMode;
 
         DataContext = _viewModel;
     }
@@ -82,14 +31,11 @@ public partial class MainWindow : Window
         NativeWindowAppearance.Apply(this);
     }
 
-    // Drag по seek-слайдеру: ставим флаг, чтобы тик прогресс-таймера не перетёр Value.
     private void OnSeekDragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
     {
         _viewModel.IsSeeking = true;
     }
 
-    // Отпускание мыши: одинаково отрабатывает и завершение drag, и одиночный клик
-    // благодаря IsMoveToPointEnabled — Value уже находится в финальной позиции.
     private void OnSeekPreviewMouseUp(object sender, MouseButtonEventArgs e)
     {
         if (sender is System.Windows.Controls.Slider slider)
@@ -105,5 +51,4 @@ public partial class MainWindow : Window
         _viewModel.Dispose();
         base.OnClosed(e);
     }
-
 }
