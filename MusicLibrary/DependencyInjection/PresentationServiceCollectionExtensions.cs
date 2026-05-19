@@ -9,8 +9,9 @@ using MusicLibrary.Views;
 namespace MusicLibrary.DependencyInjection;
 
 /// <summary>
-/// Регистрация WPF-зависимых сервисов: аудиоплеер, файловые диалоги, MessageBox-подтверждения,
-/// процедурный генератор обложек (использует WPF), а также ViewModels и MainWindow.
+/// Регистрация WPF-зависимых сервисов: аудиоплеер, файловые диалоги, брендированный
+/// диалог подтверждения, процедурный генератор обложек (использует WPF), ViewModels
+/// и MainWindow.
 /// </summary>
 public static class PresentationServiceCollectionExtensions
 {
@@ -20,12 +21,11 @@ public static class PresentationServiceCollectionExtensions
         services.AddSingleton<IAudioPlayerService, MediaPlayerAudioService>();
         services.AddSingleton<IOpenFileDialogService, OpenFileDialogService>();
         services.AddSingleton<ISaveFileDialogService, SaveFileDialogService>();
-        services.AddSingleton<IConfirmationService, MessageBoxConfirmationService>();
+        services.AddSingleton<IConfirmationService, ConfirmationDialogService>();
         services.AddSingleton<IProceduralCoverGenerator, ProceduralCoverGenerator>();
 
         // Диалоги и сервисы окон.
         services.AddSingleton<IAddTrackDialogService, AddTrackDialogService>();
-        services.AddSingleton<ConfirmationDialogService>();
 
         // ViewModels (transient — каждое окно получает свой инстанс).
         services.AddTransient<MainViewModel>();

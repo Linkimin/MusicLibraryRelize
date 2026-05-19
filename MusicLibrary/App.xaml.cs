@@ -53,9 +53,11 @@ public partial class App : Application
         var migration = services.GetRequiredService<JsonToSqliteMigrationService>();
         migration.Run();
 
-        // 3) Заполняем встроенные треки, если БД пуста.
+        // 3) Сеем встроенные треки (сравнение по парам Artist/Title): срабатывает
+        // и на чистой БД, и сразу после JsonToSqliteMigrationService — когда
+        // пользовательские треки уже есть, но эталонных ещё нет.
         var seeder = services.GetRequiredService<BuiltInTrackSeeder>();
-        seeder.SeedIfEmpty();
+        seeder.SeedBuiltIns();
     }
 
     protected override void OnExit(ExitEventArgs e)

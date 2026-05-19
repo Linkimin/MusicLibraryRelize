@@ -4,9 +4,10 @@ using MusicBakh.Core.Domain;
 namespace MusicBakh.Infrastructure.Seeding;
 
 /// <summary>
-/// Заполняет SQLite-библиотеку набором встроенных треков при первом запуске.
-/// Если в репозитории уже есть хотя бы один трек — ничего не делает (идемпотентность).
-/// Источник seed-треков параметризован, чтобы тесты могли подставить свой набор.
+/// Заполняет SQLite-библиотеку набором встроенных треков. Проверяет наличие каждого
+/// seed-трека по паре (Artist, Title) среди записей с IsBuiltIn=true; отсутствующие добавляет.
+/// Идемпотентен и устойчив к ситуации, когда пользовательская миграция уже наполнила БД
+/// своими треками — встроенные всё равно появятся.
 /// </summary>
 public sealed class BuiltInTrackSeeder
 {
@@ -19,16 +20,20 @@ public sealed class BuiltInTrackSeeder
         _seedSource = seedSource;
     }
 
-    public void SeedIfEmpty()
+    public void SeedBuiltIns()
     {
-        if (_repository.GetAll().Count > 0)
-        {
-            return;
-        }
+        var existingBuiltIns = _repository.GetAll()
+            .Where(t => t.IsBuiltIn)
+            .Select(t => (t.Artist, t.Title))
+            .ToHashSet();
 
-        foreach (var t in _seedSource())
+        foreach (var seed in _seedSource())
         {
-            _repository.Add(t);
+            if (existingBuiltIns.Contains((seed.Artist, seed.Title)))
+            {
+                continue;
+            }
+            _repository.Add(seed);
         }
     }
 }
