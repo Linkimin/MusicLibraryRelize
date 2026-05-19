@@ -59,6 +59,29 @@ public sealed class SqliteTrackRepository : ITrackRepository
         return MapToDomain(entity);
     }
 
+    public void Update(Track track)
+    {
+        using var ctx = _contextFactory();
+        var entity = ctx.Tracks.FirstOrDefault(t => t.Id == track.Id);
+        if (entity is null)
+        {
+            return;
+        }
+
+        entity.Title = track.Title;
+        entity.Artist = track.Artist;
+        entity.Album = track.Album;
+        entity.Genre = track.Genre;
+        entity.DurationTicks = track.Duration.Ticks;
+        entity.FilePath = track.FilePath;
+        entity.CoverPath = track.CoverPath;
+        entity.IsBuiltIn = track.IsBuiltIn;
+        // AddedAtUtc намеренно не трогаем — это «дата добавления в библиотеку», она не
+        // должна обнуляться при обновлении полей.
+
+        ctx.SaveChanges();
+    }
+
     public void Remove(int id)
     {
         using var ctx = _contextFactory();

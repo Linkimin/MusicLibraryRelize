@@ -64,6 +64,7 @@ public sealed class CompositeTrackRepositoryTests
         public IReadOnlyList<Track> GetAll() => _tracks;
         public Track? FindById(int id) => _tracks.FirstOrDefault(t => t.Id == id);
         public Track Add(Track track) => throw new NotSupportedException();
+        public void Update(Track track) => throw new NotSupportedException();
         public void Remove(int id) => throw new NotSupportedException();
     }
 

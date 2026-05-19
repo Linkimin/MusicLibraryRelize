@@ -68,6 +68,9 @@ public sealed class CompositeTrackRepository : ITrackRepository
     public Track Add(Track track) =>
         throw new NotSupportedException("CompositeTrackRepository не поддерживает добавление в этой итерации.");
 
+    public void Update(Track track) =>
+        throw new NotSupportedException("CompositeTrackRepository не поддерживает обновление в этой итерации.");
+
     public void Remove(int id) =>
         throw new NotSupportedException("CompositeTrackRepository не поддерживает удаление в этой итерации.");
 }

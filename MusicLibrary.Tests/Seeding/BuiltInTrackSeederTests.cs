@@ -67,4 +67,54 @@ public sealed class BuiltInTrackSeederTests
         // Повторный запуск не дублирует записи.
         Assert.Equal(2, repo.GetAll().Count);
     }
+
+    [Fact]
+    public void Seed_Refreshes_Diverged_Paths_Of_Existing_Built_Ins()
+    {
+        using var factory = new InMemorySqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+
+        // Старый путь — например, БД от предыдущей сборки в bin/Debug.
+        var stale = new[]
+        {
+            new Track { Title = "Anthem", Artist = "Vendor", FilePath = @"C:\old\path\anthem.mp3", CoverPath = @"C:\old\path\anthem.jpg", IsBuiltIn = true }
+        };
+        new BuiltInTrackSeeder(repo, () => stale).SeedBuiltIns();
+        Assert.Single(repo.GetAll());
+
+        // Новый запуск из другого каталога: AppContext.BaseDirectory изменилась → новые пути.
+        var fresh = new[]
+        {
+            new Track { Title = "Anthem", Artist = "Vendor", FilePath = @"C:\new\path\anthem.mp3", CoverPath = @"C:\new\path\anthem.jpg", IsBuiltIn = true }
+        };
+        new BuiltInTrackSeeder(repo, () => fresh).SeedBuiltIns();
+
+        var actual = Assert.Single(repo.GetAll());
+        Assert.Equal(@"C:\new\path\anthem.mp3", actual.FilePath);
+        Assert.Equal(@"C:\new\path\anthem.jpg", actual.CoverPath);
+        Assert.True(actual.IsBuiltIn);
+    }
+
+    [Fact]
+    public void Seed_Does_Not_Touch_Matching_Built_Ins()
+    {
+        // Гарантия идемпотентности: если пути совпадают, Update не вызывается,
+        // AddedAtUtc остаётся прежним (мы это явно не проверяем здесь, но Update
+        // мог бы случайно сменить другие поля).
+        using var factory = new InMemorySqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+
+        var seeds = new[]
+        {
+            new Track { Title = "X", Artist = "A", FilePath = "x.mp3", CoverPath = "x.jpg", IsBuiltIn = true }
+        };
+        new BuiltInTrackSeeder(repo, () => seeds).SeedBuiltIns();
+        var idAfterFirst = repo.GetAll().Single().Id;
+
+        new BuiltInTrackSeeder(repo, () => seeds).SeedBuiltIns();
+
+        var all = repo.GetAll();
+        Assert.Single(all);
+        Assert.Equal(idAfterFirst, all[0].Id);
+    }
 }

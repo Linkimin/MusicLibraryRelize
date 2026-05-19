@@ -25,6 +25,9 @@ public sealed class InMemoryTrackRepository : ITrackRepository
     public Track Add(Track track) =>
         throw new NotSupportedException("Seed-репозиторий встроенных треков не поддерживает добавление.");
 
+    public void Update(Track track) =>
+        throw new NotSupportedException("Seed-репозиторий встроенных треков не поддерживает обновление.");
+
     public void Remove(int id) =>
         throw new NotSupportedException("Seed-репозиторий встроенных треков не поддерживает удаление.");
 
