@@ -90,4 +90,50 @@
             </Grid>
         </Border>
     </DataTemplate>
+
+    <!-- Stats: Top — «Артист — Название» + «N ▶» справа золотым. -->
+    <DataTemplate x:Key="StatsTopItemTemplate">
+        <Grid Margin="6,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="{Binding Track.Title}" Foreground="{StaticResource ForegroundBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Track.Artist}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                <TextBlock Text="{Binding PlayCount}" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" />
+                <TextBlock Text=" ▶" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" />
+            </StackPanel>
+        </Grid>
+    </DataTemplate>
+
+    <!-- Stats: Recent unique — «Артист — Название» + дата/время справа. -->
+    <DataTemplate x:Key="StatsRecentItemTemplate">
+        <Grid Margin="6,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="{Binding Track.Title}" Foreground="{StaticResource ForegroundBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Track.Artist}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <TextBlock Grid.Column="1"
+                       VerticalAlignment="Center"
+                       Margin="12,0,0,0"
+                       Foreground="{StaticResource MutedForegroundBrush}"
+                       FontSize="12"
+                       Text="{Binding PlayedAt, StringFormat={}{0:dd.MM HH:mm}}" />
+        </Grid>
+    </DataTemplate>
+
+    <!-- Stats: Never played — только название и исполнитель. -->
+    <DataTemplate x:Key="StatsNeverPlayedItemTemplate">
+        <StackPanel Margin="6,8">
+            <TextBlock Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding Artist}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+    </DataTemplate>
 </ResourceDictionary>

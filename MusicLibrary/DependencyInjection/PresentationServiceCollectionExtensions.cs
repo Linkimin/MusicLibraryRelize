@@ -26,10 +26,12 @@ public static class PresentationServiceCollectionExtensions
 
         // Диалоги и сервисы окон.
         services.AddSingleton<IAddTrackDialogService, AddTrackDialogService>();
+        services.AddSingleton<IStatsWindowService, StatsWindowService>();
 
         // ViewModels (transient — каждое окно получает свой инстанс).
         services.AddTransient<MainViewModel>();
         services.AddTransient<AddTrackViewModel>();
+        services.AddTransient<StatsViewModel>();
 
         // Окна.
         services.AddTransient<MainWindow>();

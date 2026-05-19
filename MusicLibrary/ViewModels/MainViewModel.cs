@@ -27,6 +27,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IListeningHistoryRepository _listeningHistoryRepository;
     private readonly IPlayerSettingsRepository _playerSettingsRepository;
     private readonly ISearchService? _searchService;
+    private readonly IStatsWindowService? _statsWindowService;
     private readonly DispatcherTimer _progressTimer;
 
     private string _selectedGenre = AllGenres;
@@ -54,7 +55,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IPlayerSettingsRepository playerSettingsRepository,
         IAddTrackDialogService? addTrackDialogService = null,
         IConfirmationService? confirmationService = null,
-        ISearchService? searchService = null)
+        ISearchService? searchService = null,
+        IStatsWindowService? statsWindowService = null)
     {
         _trackRepository = trackRepository;
         _fileService = fileService;
@@ -65,6 +67,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _addTrackDialogService = addTrackDialogService;
         _confirmationService = confirmationService;
         _searchService = searchService;
+        _statsWindowService = statsWindowService;
 
         _allTracks = new List<Track>(trackRepository.GetAll());
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
@@ -89,6 +92,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ReplayHistoryEntryCommand = new RelayCommand(
             parameter => ReplayHistoryEntry(parameter as PlaybackEntry),
             parameter => parameter is PlaybackEntry);
+        OpenStatsCommand = new RelayCommand(
+            _ => _statsWindowService?.Show(),
+            _ => _statsWindowService is not null);
 
         SkipForwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(10)), _ => PlayingTrack is not null);
         SkipBackwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(-10)), _ => PlayingTrack is not null);
@@ -117,6 +123,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand DeleteTrackCommand { get; }
     public ICommand PlayTrackCommand { get; }
     public ICommand ReplayHistoryEntryCommand { get; }
+    public ICommand OpenStatsCommand { get; }
     public ICommand SkipForwardCommand { get; }
     public ICommand SkipBackwardCommand { get; }
     public ICommand PreviousTrackCommand { get; }
