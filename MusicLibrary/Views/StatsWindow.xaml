@@ -5,11 +5,10 @@
         Icon="../Assets/Brand/musicbakh.ico"
         Width="720"
         Height="620"
-        MinWidth="560"
-        MinHeight="420"
         FontFamily="{StaticResource BodyFont}"
         Background="{StaticResource BackgroundBrush}"
         WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
         KeyDown="OnWindowKeyDown">
     <Grid Margin="24">
         <Grid.RowDefinitions>
