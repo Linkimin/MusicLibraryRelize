@@ -37,6 +37,9 @@ public sealed class SqliteTrackRepository : ITrackRepository
 
     public Track Add(Track track)
     {
+        // IsBuiltIn=true принимаем сознательно: этот путь использует только seed-loader
+        // при первом запуске. У UI нет способа собрать Track с IsBuiltIn=true (форма
+        // импорта явно ставит false), поэтому отдельной защиты здесь не требуется.
         using var ctx = _contextFactory();
         var entity = new TrackEntity
         {
@@ -62,6 +65,10 @@ public sealed class SqliteTrackRepository : ITrackRepository
         if (entity is null)
         {
             return;
+        }
+        if (entity.IsBuiltIn)
+        {
+            throw new NotSupportedException("Built-in tracks cannot be removed.");
         }
         ctx.Tracks.Remove(entity);
         ctx.SaveChanges();

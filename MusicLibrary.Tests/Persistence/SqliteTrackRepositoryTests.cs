@@ -71,6 +71,62 @@ public sealed class SqliteTrackRepositoryTests
     }
 
     [Fact]
+    public void Remove_Throws_WhenTrackIsBuiltIn()
+    {
+        using var factory = new InMemorySqliteDbContextFactory();
+
+        int builtInId;
+        using (var ctx = factory.CreateContext())
+        {
+            var entity = new TrackEntity
+            {
+                Title = "Anthem",
+                Artist = "Vendor",
+                FilePath = "vendor.mp3",
+                IsBuiltIn = true
+            };
+            ctx.Tracks.Add(entity);
+            ctx.SaveChanges();
+            builtInId = entity.Id;
+        }
+
+        var repository = new SqliteTrackRepository(factory.CreateContext);
+
+        Assert.Throws<NotSupportedException>(() => repository.Remove(builtInId));
+        Assert.Single(repository.GetAll());
+    }
+
+    [Fact]
+    public void Remove_Succeeds_ForUserTrack()
+    {
+        using var factory = new InMemorySqliteDbContextFactory();
+        var repository = new SqliteTrackRepository(factory.CreateContext);
+
+        var saved = repository.Add(new Track
+        {
+            Title = "User",
+            Artist = "Self",
+            Duration = TimeSpan.FromSeconds(120),
+            FilePath = "self.mp3",
+            IsBuiltIn = false
+        });
+
+        repository.Remove(saved.Id);
+
+        Assert.Empty(repository.GetAll());
+    }
+
+    [Fact]
+    public void Remove_NoThrow_WhenTrackMissing()
+    {
+        using var factory = new InMemorySqliteDbContextFactory();
+        var repository = new SqliteTrackRepository(factory.CreateContext);
+
+        // Контракт ITrackRepository: «если трека с таким Id нет — тихо ничего не делает».
+        repository.Remove(999);
+    }
+
+    [Fact]
     public void GetAll_Orders_BuiltIn_Tracks_First()
     {
         using var factory = new InMemorySqliteDbContextFactory();
