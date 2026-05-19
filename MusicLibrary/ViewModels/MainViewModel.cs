@@ -15,6 +15,11 @@ namespace MusicLibrary.ViewModels;
 public sealed class MainViewModel : ViewModelBase, IDisposable
 {
     private const string AllGenres = "Все жанры";
+
+    // Лимит относится только к виджету «недавнее» в правой колонке MainWindow:
+    // показываем последние 50 событий (с дублями), потому что виджет — это
+    // «что играло прямо сейчас», а не журнал. Полная история без лимита доступна
+    // через IListeningHistoryRepository.GetAll и используется в StatsWindow.
     private const int MaxHistoryItems = 50;
 
     private readonly List<Track> _allTracks;
