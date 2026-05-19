@@ -67,6 +67,10 @@ public sealed class JsonToSqliteMigrationService
                 {
                     Title = t.Title,
                     Artist = t.Artist,
+                    // Legacy JSON не содержит Album. Default в TrackEntity и колонке
+                    // (NOT NULL DEFAULT '') и так дают пустую строку, но явная установка
+                    // защищает от регрессий, если кто-то сделает поле nullable.
+                    Album = string.Empty,
                     Genre = t.Genre,
                     DurationTicks = TimeSpan.FromSeconds(t.DurationSeconds).Ticks,
                     FilePath = t.FilePath,

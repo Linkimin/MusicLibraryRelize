@@ -60,6 +60,9 @@ END;");
             // AFTER UPDATE OF <cols> — триггер срабатывает только когда меняются
             // индексируемые колонки. Это экономит работу при апдейтах CoverPath/IsBuiltIn
             // и будущих LastPlayedAt/Rating.
+            // TODO: список колонок ниже должен совпадать с колонками TracksFts выше.
+            // При добавлении новой индексируемой колонки — обновить и virtual table,
+            // и оба INSERT'а внутри триггера, и список после AFTER UPDATE OF.
             migrationBuilder.Sql(@"
 CREATE TRIGGER IF NOT EXISTS Tracks_au AFTER UPDATE OF Title, Artist, Album, Genre ON Tracks
 BEGIN

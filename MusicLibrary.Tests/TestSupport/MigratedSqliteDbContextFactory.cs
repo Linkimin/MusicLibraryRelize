@@ -10,6 +10,12 @@ namespace MusicLibrary.Tests.TestSupport;
 /// который зовёт EnsureCreated() и пропускает raw-SQL миграции (FTS5 виртуальная
 /// таблица, триггеры). Использовать для тестов, которые зависят от FTS или другого
 /// schema-инвариант, заведённого migrationBuilder.Sql.
+///
+/// ВАЖНО: фабрика держит один общий SqliteConnection и переиспользует его для всех
+/// контекстов. Это работает только потому, что in-memory SQLite живёт ровно столько,
+/// сколько открыто соединение. Не делитесь экземпляром фабрики между потоками и не
+/// переходите на AddDbContextFactory с реальным connection pool — миграции и
+/// контексты обязаны видеть одну и ту же in-memory БД.
 /// </summary>
 internal sealed class MigratedSqliteDbContextFactory : IDisposable
 {

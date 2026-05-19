@@ -42,6 +42,10 @@ public sealed class CompositeTrackRepository : ITrackRepository
                 Id = id,
                 Title = user.Title,
                 Artist = user.Artist,
+                // Legacy JSON-формат UserTrack не несёт Album — пользовательские треки
+                // оттуда приходят с пустым альбомом. Полноценное значение появится после
+                // ре-импорта (TagLib читает tag.Album).
+                Album = string.Empty,
                 Genre = user.Genre,
                 Duration = TimeSpan.FromSeconds(user.DurationSeconds),
                 FilePath = user.FilePath,
