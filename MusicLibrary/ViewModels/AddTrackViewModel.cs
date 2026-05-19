@@ -1,7 +1,7 @@
+using MusicBakh.Application.Abstractions;
+using MusicBakh.Application.Contracts;
+using MusicBakh.Core.Domain;
 using MusicLibrary.Commands;
-using MusicLibrary.Models;
-using MusicLibrary.Services.Files;
-using MusicLibrary.Services.Import;
 using MusicLibrary.ViewModels;
 using System.IO;
 using System.Windows.Input;

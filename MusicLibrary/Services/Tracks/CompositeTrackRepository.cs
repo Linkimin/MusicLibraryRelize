@@ -1,5 +1,8 @@
-using MusicLibrary.Models;
-using MusicLibrary.Services.Storage;
+using MusicBakh.Core.Abstractions;
+using MusicBakh.Core.Domain;
+using MusicBakh.Infrastructure.Migration.Legacy;
+
+#pragma warning disable CS0618 // CompositeTrackRepository использует legacy IUserTrackStorage до Task 16.
 
 namespace MusicLibrary.Services.Tracks;
 
@@ -21,9 +24,9 @@ public sealed class CompositeTrackRepository : ITrackRepository
         _storage = storage;
     }
 
-    public IReadOnlyList<Track> GetTracks()
+    public IReadOnlyList<Track> GetAll()
     {
-        IReadOnlyList<Track> builtInTracks = _builtIn.GetTracks();
+        IReadOnlyList<Track> builtInTracks = _builtIn.GetAll();
         int nextId = builtInTracks.Count == 0 ? 1 : builtInTracks.Max(t => t.Id) + 1;
 
         var taken = new HashSet<int>(builtInTracks.Select(t => t.Id));
@@ -53,4 +56,16 @@ public sealed class CompositeTrackRepository : ITrackRepository
 
         return result;
     }
+
+    // Допустимое решение, пока CompositeTrackRepository не заменён SqliteTrackRepository в Task 11:
+    // FindById вызывает GetAll и просматривает результат — на текущих объёмах библиотеки накладные расходы пренебрежимы.
+    public Track? FindById(int id) => GetAll().FirstOrDefault(t => t.Id == id);
+
+    public Track Add(Track track) =>
+        throw new NotSupportedException("CompositeTrackRepository не поддерживает добавление в этой итерации.");
+
+    public void Remove(int id) =>
+        throw new NotSupportedException("CompositeTrackRepository не поддерживает удаление в этой итерации.");
 }
+
+#pragma warning restore CS0618

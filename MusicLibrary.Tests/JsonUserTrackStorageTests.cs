@@ -1,6 +1,8 @@
-using MusicLibrary.Models;
-using MusicLibrary.Services.Storage;
+using MusicBakh.Core.Domain;
+using MusicBakh.Infrastructure.Migration.Legacy;
 using System.IO;
+
+#pragma warning disable CS0618 // Тест проверяет legacy-хранилище JsonUserTrackStorage.
 
 namespace MusicLibrary.Tests;
 
@@ -126,3 +128,5 @@ public sealed class JsonUserTrackStorageTests : IDisposable
         Assert.Empty(storage.Load());
     }
 }
+
+#pragma warning restore CS0618

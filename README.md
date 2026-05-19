@@ -36,8 +36,10 @@
 
 Пользовательские данные хранятся в:
 
-- `%LocalAppData%\MusicLibrary\` — импортированные треки (`Music\`), обложки (`Covers\`), индекс `userTracks.json`.
-- `%LocalAppData%\MusicBakh\player-settings.json` — громкость, mute, режим повтора.
+- `%LocalAppData%\MusicLibrary\library.db` — SQLite-база с треками, историей и настройками плеера (заменила `userTracks.json` начиная с 1.0.1).
+- `%LocalAppData%\MusicLibrary\Music\` — импортированные аудиофайлы.
+- `%LocalAppData%\MusicLibrary\Covers\` — обложки.
+- `%LocalAppData%\MusicLibrary\userTracks.json.backup-<timestamp>` — резервная копия старого индекса, появляется только при первом запуске после апгрейда с 1.0.x; можно удалить вручную.
 
 При деинсталляции каталог приложения удаляется полностью, пользовательские данные в `%LocalAppData%` сохраняются, чтобы переустановка восстановила библиотеку.
 
@@ -66,7 +68,7 @@ pwsh scripts/build-release.ps1 -Version 1.0.0
 
 ## Архитектура
 
-WPF + лёгкий MVVM на .NET 10. Зависимости собираются вручную в [MainWindow.xaml.cs](MusicLibrary/MainWindow.xaml.cs:20), без IoC-контейнера. Полное описание слоёв и сервисов — [docs/architecture.md](docs/architecture.md). 
+WPF + лёгкий MVVM на .NET 10. Начиная с версии 1.1.0 приложение разбито на 4 проекта: `MusicBakh.Core`, `MusicBakh.Application`, `MusicBakh.Infrastructure`, `MusicLibrary`. DI-контейнер — `Microsoft.Extensions.Hosting`; бутстрап выполняется в [`App.OnStartup`](MusicLibrary/App.xaml.cs). Полное описание слоёв и сервисов — [docs/architecture.md](docs/architecture.md).
 
 ## Лицензия
 

@@ -1,5 +1,6 @@
-using MusicLibrary.Services.Covers;
-using MusicLibrary.Services.Metadata;
+using MusicBakh.Application.Abstractions;
+using MusicBakh.Application.Contracts;
+using MusicBakh.Infrastructure.Metadata;
 
 namespace MusicLibrary.Tests;
 

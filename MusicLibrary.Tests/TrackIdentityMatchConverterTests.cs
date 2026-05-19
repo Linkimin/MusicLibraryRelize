@@ -1,5 +1,5 @@
 using MusicLibrary.Converters;
-using MusicLibrary.Models;
+using MusicBakh.Core.Domain;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;

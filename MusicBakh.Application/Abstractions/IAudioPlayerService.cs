@@ -1,0 +1,23 @@
+using MusicBakh.Core.Domain;
+
+namespace MusicBakh.Application.Abstractions;
+
+public interface IAudioPlayerService : IDisposable
+{
+    event EventHandler<string>? MediaOpened;
+    event EventHandler? MediaEnded;
+    event EventHandler<string>? MediaFailed;
+
+    bool IsPlaying { get; }
+    TimeSpan Position { get; set; }
+    TimeSpan Duration { get; }
+
+    // Громкость 0..1, как у System.Windows.Media.MediaPlayer.
+    double Volume { get; set; }
+    bool IsMuted { get; set; }
+
+    OperationResult Open(string filePath);
+    OperationResult Play();
+    void Pause();
+    void Stop();
+}
