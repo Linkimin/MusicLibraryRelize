@@ -3,7 +3,7 @@ using MusicBakh.Application.Contracts;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace MusicLibrary.Services.Metadata;
+namespace MusicBakh.Infrastructure.Metadata;
 
 /// <summary>
 /// Каскадный резолвер: ID3 — основа, но грязные сайты-агрегаторы (drivemusic.me, muzofond и пр.)

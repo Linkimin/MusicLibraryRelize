@@ -2,15 +2,16 @@ using MusicBakh.Application.Abstractions;
 using MusicBakh.Application.Contracts;
 using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
+using MusicBakh.Infrastructure.Migration.Legacy;
+using MusicBakh.Infrastructure.Playback;
 using MusicLibrary.Commands;
-using MusicLibrary.Models;
-using MusicLibrary.Services.Playback;
-using MusicLibrary.Services.Storage;
 using MusicLibrary.Views;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Input;
 using System.Windows.Threading;
+
+#pragma warning disable CS0618 // MainViewModel использует legacy-типы до замены на DI в Task 16.
 
 namespace MusicLibrary.ViewModels;
 
@@ -774,3 +775,5 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _audioPlayerService.Dispose();
     }
 }
+
+#pragma warning restore CS0618

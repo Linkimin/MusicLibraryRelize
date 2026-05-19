@@ -1,4 +1,4 @@
-using MusicLibrary.Services.Metadata;
+using MusicBakh.Infrastructure.Metadata;
 
 namespace MusicLibrary.Tests;
 

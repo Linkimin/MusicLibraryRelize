@@ -2,7 +2,7 @@ using MusicBakh.Application.Abstractions;
 using MusicBakh.Core.Domain;
 using System.IO;
 
-namespace MusicLibrary.Services.Files;
+namespace MusicBakh.Infrastructure.FileSystem;
 
 /// <summary>
 /// Инкапсулирует работу с файловой системой. ViewModel получает понятный результат,

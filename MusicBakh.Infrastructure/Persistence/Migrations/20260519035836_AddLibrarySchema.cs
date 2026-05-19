@@ -1,12 +1,13 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using EFMigration = Microsoft.EntityFrameworkCore.Migrations.Migration;
 
 #nullable disable
 
 namespace MusicBakh.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class AddLibrarySchema : Migration
+    public partial class AddLibrarySchema : EFMigration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

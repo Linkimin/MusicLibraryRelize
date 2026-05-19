@@ -4,7 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 
-namespace MusicLibrary.Services.Metadata;
+namespace MusicBakh.Infrastructure.Metadata;
 
 /// <summary>
 /// Клиент REST API MusicBrainz. Сам сервер требует осмысленный User-Agent

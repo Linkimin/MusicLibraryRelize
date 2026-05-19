@@ -1,8 +1,9 @@
 using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
-using MusicLibrary.Models;
-using MusicLibrary.Services.Storage;
+using MusicBakh.Infrastructure.Migration.Legacy;
 using MusicLibrary.Services.Tracks;
+
+#pragma warning disable CS0618 // Тест использует legacy IUserTrackStorage как часть CompositeTrackRepository.
 
 namespace MusicLibrary.Tests;
 
@@ -79,3 +80,5 @@ public sealed class CompositeTrackRepositoryTests
         public void Delete(int id) => _tracks.RemoveAll(t => t.Id == id);
     }
 }
+
+#pragma warning restore CS0618

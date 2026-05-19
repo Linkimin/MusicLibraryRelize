@@ -1,7 +1,7 @@
 using MusicBakh.Application.Abstractions;
 using MusicBakh.Core.Domain;
 
-namespace MusicLibrary.Services.Playback;
+namespace MusicBakh.Infrastructure.Playback;
 
 /// <summary>
 /// Зацикливание видимого списка: после последнего трека возвращаемся к первому.

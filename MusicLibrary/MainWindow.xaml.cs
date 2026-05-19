@@ -1,10 +1,11 @@
+using MusicBakh.Infrastructure.Covers;
+using MusicBakh.Infrastructure.FileSystem;
+using MusicBakh.Infrastructure.Import;
+using MusicBakh.Infrastructure.Metadata;
+using MusicBakh.Core.Domain;
 using MusicLibrary.Services.Covers;
 using MusicLibrary.Services.Files;
-using MusicLibrary.Services.Import;
-using MusicLibrary.Services.Metadata;
 using MusicLibrary.Services.Playback;
-using MusicBakh.Core.Domain;
-using MusicLibrary.Services.Storage;
 using MusicLibrary.Services.Tracks;
 using MusicLibrary.ViewModels;
 using MusicLibrary.Views;
@@ -25,7 +26,8 @@ public partial class MainWindow : Window
 
         // В учебной работе логика располагалась в окне. Здесь окно только собирает зависимости,
         // а сценарии приложения выполняет MainViewModel через сервисы.
-        var storage = new JsonUserTrackStorage();
+#pragma warning disable CS0618 // Legacy storage используется только до Task 16, где DI заменит ручную сборку.
+        var storage = new MusicBakh.Infrastructure.Migration.Legacy.JsonUserTrackStorage();
         var repository = new CompositeTrackRepository(new InMemoryTrackRepository(), storage);
 
         var sharedHttpClient = new HttpClient();
@@ -44,13 +46,15 @@ public partial class MainWindow : Window
 
         // Поднимаем настройки плеера до создания плеера и ViewModel —
         // громкость и mute должны примениться до первой команды Play.
-        var playerSettingsStorage = new JsonPlayerSettingsStorage(JsonPlayerSettingsStorage.DefaultPath);
+        var playerSettingsStorage = new MusicBakh.Infrastructure.Migration.Legacy.JsonPlayerSettingsStorage(MusicBakh.Infrastructure.Migration.Legacy.JsonPlayerSettingsStorage.DefaultPath);
         PlayerSettings playerSettings = playerSettingsStorage.Load();
+#pragma warning restore CS0618
 
         var audioPlayerService = new MediaPlayerAudioService();
         audioPlayerService.Volume = playerSettings.Volume;
         audioPlayerService.IsMuted = playerSettings.IsMuted;
 
+#pragma warning disable CS0618 // Legacy storage используется только до Task 16, где DI заменит ручную сборку.
         _viewModel = new MainViewModel(
             repository,
             new FileService(),
@@ -60,6 +64,7 @@ public partial class MainWindow : Window
             storage,
             new ConfirmationDialogService(),
             playerSettingsStorage);
+#pragma warning restore CS0618
 
         // Гидратируем ViewModel тем же снимком настроек: сеттеры могут сделать
         // несколько маленьких повторных сохранений, зато финальная запись согласована.

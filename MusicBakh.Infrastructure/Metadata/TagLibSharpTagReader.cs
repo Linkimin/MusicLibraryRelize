@@ -1,7 +1,7 @@
 using MusicBakh.Application.Abstractions;
 using MusicBakh.Application.Contracts;
 
-namespace MusicLibrary.Services.Metadata;
+namespace MusicBakh.Infrastructure.Metadata;
 
 /// <summary>
 /// Адаптер библиотеки TagLib# (NuGet TagLibSharp). Достает Title/Artist/Genre/Duration

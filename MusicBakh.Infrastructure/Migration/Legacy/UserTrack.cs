@@ -1,12 +1,14 @@
 using MusicBakh.Core.Domain;
+using System;
 
-namespace MusicLibrary.Models;
+namespace MusicBakh.Infrastructure.Migration.Legacy;
 
 /// <summary>
 /// DTO для пользовательских треков, сохраняемых в JSON-файл userTracks.json.
 /// От доменной модели Track отличается тем, что длительность хранится в секундах
 /// (TimeSpan не дружит с разными версиями сериализатора) и есть метка времени AddedAt.
 /// </summary>
+[Obsolete("Используется только сервисом миграции JsonToSqliteMigrationService. Не использовать в новом коде.")]
 public sealed class UserTrack
 {
     public int Id { get; set; }

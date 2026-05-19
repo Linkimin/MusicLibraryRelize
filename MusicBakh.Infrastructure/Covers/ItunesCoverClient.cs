@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace MusicLibrary.Services.Covers;
+namespace MusicBakh.Infrastructure.Covers;
 
 /// <summary>
 /// Поиск метаданных через iTunes Search API: https://itunes.apple.com/search.

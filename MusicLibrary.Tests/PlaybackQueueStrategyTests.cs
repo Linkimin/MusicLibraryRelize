@@ -1,5 +1,5 @@
 using MusicBakh.Core.Domain;
-using MusicLibrary.Services.Playback;
+using MusicBakh.Infrastructure.Playback;
 
 namespace MusicLibrary.Tests;
 

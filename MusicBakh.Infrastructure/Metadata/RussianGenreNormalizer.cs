@@ -1,7 +1,7 @@
 using MusicBakh.Application.Abstractions;
 using System.Globalization;
 
-namespace MusicLibrary.Services.Metadata;
+namespace MusicBakh.Infrastructure.Metadata;
 
 /// <summary>
 /// Сводит англоязычные жанры из MusicBrainz/iTunes к русским названиям, совместимым

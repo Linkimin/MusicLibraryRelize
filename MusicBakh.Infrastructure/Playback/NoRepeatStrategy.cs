@@ -1,7 +1,7 @@
 using MusicBakh.Application.Abstractions;
 using MusicBakh.Core.Domain;
 
-namespace MusicLibrary.Services.Playback;
+namespace MusicBakh.Infrastructure.Playback;
 
 /// <summary>
 /// Базовый auto-next: следующий трек по индексу, после последнего — null (стоп).

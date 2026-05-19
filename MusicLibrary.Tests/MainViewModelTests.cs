@@ -1,10 +1,12 @@
 using MusicBakh.Application.Abstractions;
 using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
-using MusicLibrary.Services.Storage;
+using MusicBakh.Infrastructure.Migration.Legacy;
 using MusicLibrary.ViewModels;
 using System.IO;
 using System.Reflection;
+
+#pragma warning disable CS0618 // Тест использует legacy IPlayerSettingsStorage через FakePlayerSettingsStorage.
 
 namespace MusicLibrary.Tests;
 
@@ -838,3 +840,5 @@ public sealed class MainViewModelTests
         public void RaiseFailedForTest(string message) => MediaFailed?.Invoke(this, message);
     }
 }
+
+#pragma warning restore CS0618

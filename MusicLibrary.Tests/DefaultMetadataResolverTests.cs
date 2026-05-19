@@ -1,6 +1,6 @@
 using MusicBakh.Application.Abstractions;
 using MusicBakh.Application.Contracts;
-using MusicLibrary.Services.Metadata;
+using MusicBakh.Infrastructure.Metadata;
 
 namespace MusicLibrary.Tests;
 

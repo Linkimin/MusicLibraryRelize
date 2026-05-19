@@ -1,7 +1,7 @@
 using MusicBakh.Application.Abstractions;
 using MusicBakh.Application.Contracts;
 
-namespace MusicLibrary.Services.Covers;
+namespace MusicBakh.Infrastructure.Covers;
 
 /// <summary>
 /// Каскад источников обложки: ID3 APIC → iTunes Search → процедурная заглушка.

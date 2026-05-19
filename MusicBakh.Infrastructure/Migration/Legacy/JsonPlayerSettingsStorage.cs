@@ -1,15 +1,17 @@
 using MusicBakh.Core.Domain;
+using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace MusicLibrary.Services.Storage;
+namespace MusicBakh.Infrastructure.Migration.Legacy;
 
 /// <summary>
 /// JSON-хранилище настроек плеера.
 /// Файл лежит в %LocalAppData%\MusicBakh\player-settings.json.
 /// При повреждении / отсутствии возвращает PlayerSettings.Default.
 /// </summary>
+[Obsolete("Используется только сервисом миграции JsonToSqliteMigrationService. Не использовать в новом коде.")]
 public sealed class JsonPlayerSettingsStorage : IPlayerSettingsStorage
 {
     private static readonly JsonSerializerOptions Options = new()

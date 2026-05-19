@@ -1,11 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore.Migrations;
+using EFMigration = Microsoft.EntityFrameworkCore.Migrations.Migration;
 
 #nullable disable
 
 namespace MusicBakh.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class AddKeyValueStore : Migration
+    public partial class AddKeyValueStore : EFMigration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

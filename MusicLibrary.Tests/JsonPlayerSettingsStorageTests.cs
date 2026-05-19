@@ -1,6 +1,8 @@
 using MusicBakh.Core.Domain;
-using MusicLibrary.Services.Storage;
+using MusicBakh.Infrastructure.Migration.Legacy;
 using System.IO;
+
+#pragma warning disable CS0618 // Тест проверяет legacy-хранилище JsonPlayerSettingsStorage.
 
 namespace MusicLibrary.Tests;
 
@@ -115,3 +117,5 @@ public sealed class JsonPlayerSettingsStorageTests : IDisposable
         Assert.True(File.Exists(_settingsPath));
     }
 }
+
+#pragma warning restore CS0618

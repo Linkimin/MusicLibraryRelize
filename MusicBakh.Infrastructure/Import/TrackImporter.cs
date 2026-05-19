@@ -1,10 +1,10 @@
 using MusicBakh.Application.Abstractions;
 using MusicBakh.Application.Contracts;
-using MusicLibrary.Services.Storage;
+using MusicBakh.Infrastructure.Migration.Legacy;
 using System.IO;
 using System.Net.Http;
 
-namespace MusicLibrary.Services.Import;
+namespace MusicBakh.Infrastructure.Import;
 
 /// <summary>
 /// Один pipeline для обоих источников: сначала аудио оказывается на диске
@@ -17,11 +17,15 @@ public sealed class TrackImporter : ITrackImporter
     private const long MaxDownloadBytes = 50L * 1024 * 1024;
     private static readonly string[] AllowedExtensions = { ".mp3", ".wav" };
 
+#pragma warning disable CS0618 // TrackImporter зависит от IUserTrackStorage как часть legacy-слоя, заменяется в Task 16.
     private readonly IUserTrackStorage _storage;
+#pragma warning restore CS0618
+
     private readonly IMetadataResolver _metadataResolver;
     private readonly ICoverResolver _coverResolver;
     private readonly HttpClient _httpClient;
 
+#pragma warning disable CS0618 // TrackImporter зависит от IUserTrackStorage как часть legacy-слоя, заменяется в Task 16.
     public TrackImporter(
         IUserTrackStorage storage,
         IMetadataResolver metadataResolver,
@@ -33,6 +37,7 @@ public sealed class TrackImporter : ITrackImporter
         _coverResolver = coverResolver;
         _httpClient = httpClient;
     }
+#pragma warning restore CS0618
 
     public async Task<ImportResult> ImportAsync(ImportRequest request, IProgress<double>? progress, CancellationToken cancellationToken)
     {

@@ -1,14 +1,15 @@
-using MusicLibrary.Models;
+using System;
 using System.IO;
 using System.Text.Json;
 
-namespace MusicLibrary.Services.Storage;
+namespace MusicBakh.Infrastructure.Migration.Legacy;
 
 /// <summary>
 /// Реализация хранилища пользовательских треков на основе JSON-файла в %LocalAppData%/MusicLibrary.
 /// Каталоги Music и Covers создаются автоматически при первом обращении, поэтому импортёр
 /// может писать в них без дополнительных проверок.
 /// </summary>
+[Obsolete("Используется только сервисом миграции JsonToSqliteMigrationService. Не использовать в новом коде.")]
 public sealed class JsonUserTrackStorage : IUserTrackStorage
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()

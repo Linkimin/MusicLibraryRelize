@@ -1,7 +1,8 @@
 using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
-using MusicLibrary.Models;
-using MusicLibrary.Services.Storage;
+using MusicBakh.Infrastructure.Migration.Legacy;
+
+#pragma warning disable CS0618 // CompositeTrackRepository использует legacy IUserTrackStorage до Task 16.
 
 namespace MusicLibrary.Services.Tracks;
 
@@ -66,3 +67,5 @@ public sealed class CompositeTrackRepository : ITrackRepository
     public void Remove(int id) =>
         throw new NotSupportedException("CompositeTrackRepository не поддерживает удаление в этой итерации.");
 }
+
+#pragma warning restore CS0618
