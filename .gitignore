@@ -8,3 +8,5 @@ TestResults/
 .claude/
 publish/
 release/
+
+MusicBakh.Infrastructure/design-time.db
