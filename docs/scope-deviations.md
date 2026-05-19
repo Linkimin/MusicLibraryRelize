@@ -212,3 +212,16 @@
 - DI-композиция через `Microsoft.Extensions.Hosting` вместо ручной сборки зависимостей в `MainWindow.xaml.cs`: весь бутстрап перенесён в `App.OnStartup` с расширениями `AddMusicBakhInfrastructure` и `AddMusicBakhPresentation`.
 - История воспроизведения и настройки плеера переехали в SQLite (таблицы `ListeningHistory` и `KeyValueStore`), убрав зависимость от отдельного `player-settings.json` в `%LocalAppData%\MusicBakh\`.
 - Автоматическая миграция с 1.0.0 через `JsonToSqliteMigrationService`: при первом запуске после апгрейда копирует записи из `userTracks.json` в таблицу `Tracks`, затем переименовывает файл в `userTracks.json.backup-<timestamp>`; операция идемпотентна.
+
+## 1.0.2 — FTS5-поиск и расширенная история (итерация B на пути к минору 1.1.0)
+
+- Добавлено поле `Album` в доменную модель `Track`, заведено миграцией `AddTrackAlbum`. UI группировки по альбомам не делается — это работа итерации D (`1.0.4`).
+- Полнотекстовый поиск по библиотеке через SQLite FTS5 (виртуальная таблица `TracksFts` с external content, три триггера синхронизации, токенизатор `unicode61 remove_diacritics 2`). Контракт спрятан за интерфейсом `ISearchService` в `MusicBakh.Core.Abstractions`. Пользовательский ввод проходит через `FtsQueryBuilder` (чистка зарезервированных FTS-символов, prefix-match, неявный AND, cap на 10 токенов) — нельзя сконструировать boolean-выражение случайным сочетанием символов.
+- Кириллическая нормализация `й↔и` сознательно не делается: SQLite-FTS5 классифицирует `й` как отдельную букву, а не диакритическую модификацию `и`. Полноценная морфология — задача backlog `1.0.3+`.
+- `MainViewModel._allTracks` остаётся in-memory копией всей библиотеки; пагинация и виртуализация ListBox планируются на итерацию D/E одновременно с альбомным view. Поиск через `ISearchService` идёт прямым SQL и не упирается в `_allTracks`.
+- Расширен `IListeningHistoryRepository` четырьмя методами (`GetAll`, `GetTop`, `GetRecentUnique`, `GetNeverPlayed` → DTO `ListeningStats(Track, PlayCount, LastPlayedUtc)`) — лимит «50 записей» снят на уровне репозитория. Виджет «недавнее» в правой колонке `MainWindow` лимит 50 сохраняет осознанно (это «что играло прямо сейчас», а не журнал).
+- Отдельное окно `StatsWindow` с тремя вкладками (Top-50 / Recent unique / Never played). Открывается кнопкой «Статистика» в шапке и хоткеем `Ctrl+T`. Не модальное.
+- `ITrackRepository.Update(Track)` добавлен в контракт ради `BuiltInTrackSeeder` — теперь устаревшие `FilePath`/`CoverPath` эталонных треков обновляются при переезде сборки в другую папку (`bin/Debug` ↔ `bin/Release`). Раньше «файл не найден» оставался навсегда.
+- Контракт `ITrackRepository.Remove` действительно бросает `NotSupportedException` для встроенных треков. До 1.0.2 реализация молча удаляла; UI это не вскрывало (`CanDeleteSelected` блокирует кнопку), но инвариант слоя восстановлен.
+- Use-case-слой остаётся слоем абстракций — переезд логики `MainViewModel` в `*UseCase`/pipeline-handler-ы запланирован на отдельную итерацию, ориентир `1.9.0` Architecture hardening.
+- Перерасклад буквенных хоткеев под русскую раскладку: `M` → `Ctrl+M`, `R` → `Ctrl+R` (иначе клавиши `R`=«К» и `M`=«Ь» не доходят до поля поиска). Голые `←/→` (skip ±10 с) сняты — их перехватывал ListBox/Slider; перемотка теперь на `Shift+←/→`.
