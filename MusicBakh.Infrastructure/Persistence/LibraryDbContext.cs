@@ -6,7 +6,7 @@ namespace MusicBakh.Infrastructure.Persistence;
 
 /// <summary>
 /// Контекст локальной библиотеки MusicBakh. В этой итерации содержит только треки,
-/// в Task 10/11 к нему присоединятся история прослушиваний и KV-стор настроек.
+/// в Task 11 к нему присоединится KV-стор настроек.
 /// </summary>
 public sealed class LibraryDbContext : DbContext
 {
@@ -15,9 +15,11 @@ public sealed class LibraryDbContext : DbContext
     }
 
     internal DbSet<TrackEntity> Tracks => Set<TrackEntity>();
+    internal DbSet<ListeningHistoryEntryEntity> ListeningHistory => Set<ListeningHistoryEntryEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new TrackEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new ListeningHistoryEntryConfiguration());
     }
 }
