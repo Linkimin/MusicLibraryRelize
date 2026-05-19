@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace MusicBakh.Infrastructure.Persistence;
 
 /// <summary>
@@ -13,4 +15,18 @@ public sealed record LibraryDbContextOptions(string DatabasePath)
             "library.db"));
 
     public string ConnectionString => $"Data Source={DatabasePath}";
+
+    /// <summary>
+    /// Создаёт каталог, в котором будет лежать SQLite-файл. SQLite сам файл создаст,
+    /// но папку — нет: на чистой машине без этого Database.Migrate() упадёт с
+    /// "directory not found", если %LocalAppData%\MusicLibrary ещё не существует.
+    /// </summary>
+    public void EnsureDirectory()
+    {
+        var directory = Path.GetDirectoryName(DatabasePath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+    }
 }

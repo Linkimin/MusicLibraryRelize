@@ -54,10 +54,11 @@ public static class InfrastructureServiceCollectionExtensions
         // Импортёр треков.
         services.AddSingleton<ITrackImporter, TrackImporter>();
 
-        // Миграция данных и seeding.
+        // Миграция данных и seeding. Сервис миграции получает Func<LibraryDbContext>
+        // напрямую (а не ITrackRepository), чтобы выполнять перенос в одной транзакции.
         services.AddSingleton<JsonToSqliteMigrationService>(sp => new JsonToSqliteMigrationService(
             sp.GetRequiredService<IMusicStoragePaths>().RootDirectory,
-            sp.GetRequiredService<ITrackRepository>()));
+            sp.GetRequiredService<Func<LibraryDbContext>>()));
         services.AddSingleton<BuiltInTrackSeeder>(sp => new BuiltInTrackSeeder(
             sp.GetRequiredService<ITrackRepository>(),
             BuiltInTracksProvider.GetDefaults));

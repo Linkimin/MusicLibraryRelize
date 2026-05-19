@@ -55,6 +55,33 @@ public sealed class SqliteListeningHistoryRepositoryTests
         Assert.True(recent[0].PlayedAt > recent[^1].PlayedAt);
     }
 
+    [Fact]
+    public void GetRecent_Preserves_IsBuiltIn_Flag()
+    {
+        using var factory = new InMemorySqliteDbContextFactory();
+        // Эталонный seed-трек: IsBuiltIn=true.
+        using (var ctx = factory.CreateContext())
+        {
+            ctx.Tracks.Add(new TrackEntity
+            {
+                Id = 42,
+                Title = "Built-in",
+                Artist = "Vendor",
+                FilePath = "built.mp3",
+                IsBuiltIn = true
+            });
+            ctx.SaveChanges();
+        }
+
+        var repo = new SqliteListeningHistoryRepository(factory.CreateContext, new FixedClock());
+        repo.Append(new PlaybackEntry { Track = new Track { Id = 42 }, PlayedAt = DateTime.MinValue });
+
+        var recent = repo.GetRecent();
+        // Если IsBuiltIn потерян — UI разрешит удалить shipped-файлы из install-папки.
+        Assert.True(recent[0].Track.IsBuiltIn,
+            "IsBuiltIn должен дотечь до UI через историю, иначе delete-кнопка активируется на встроенных треках.");
+    }
+
     private static void SeedTrack(InMemorySqliteDbContextFactory factory, int id, string title)
     {
         using var ctx = factory.CreateContext();

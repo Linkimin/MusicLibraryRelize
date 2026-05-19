@@ -37,7 +37,11 @@ public sealed class SqliteListeningHistoryRepository : IListeningHistoryReposito
                     Genre = h.Track.Genre,
                     Duration = TimeSpan.FromTicks(h.Track.DurationTicks),
                     FilePath = h.Track.FilePath,
-                    CoverPath = h.Track.CoverPath
+                    CoverPath = h.Track.CoverPath,
+                    // Критично: IsBuiltIn должен дотечь до UI. Иначе после перезапуска
+                    // history-replay вернёт встроенный трек с IsBuiltIn=false, и кнопка
+                    // «Удалить» активируется на shipped-файлы из install-папки.
+                    IsBuiltIn = h.Track.IsBuiltIn
                 },
                 PlayedAt = h.PlayedAtUtc
             })

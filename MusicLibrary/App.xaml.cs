@@ -42,6 +42,10 @@ public partial class App : Application
 
     private static void InitializeDatabase(IServiceProvider services)
     {
+        // 0) На чистой машине каталог %LocalAppData%\MusicLibrary ещё не существует;
+        // SQLite не создаёт его сам — нужно явно перед открытием соединения.
+        LibraryDbContextOptions.Default.EnsureDirectory();
+
         // 1) Создаём БД и применяем миграции.
         var contextFactory = services.GetRequiredService<IDbContextFactory<LibraryDbContext>>();
         using (var ctx = contextFactory.CreateDbContext())

@@ -1,8 +1,8 @@
 #pragma warning disable CS0618 // Сервис мигрирует данные из legacy-хранилища — единственное санкционированное использование Obsolete-типов.
 
-using MusicBakh.Core.Abstractions;
-using MusicBakh.Core.Domain;
 using MusicBakh.Infrastructure.Migration.Legacy;
+using MusicBakh.Infrastructure.Persistence;
+using MusicBakh.Infrastructure.Persistence.Entities;
 
 namespace MusicBakh.Infrastructure.Migration;
 
@@ -13,19 +13,23 @@ namespace MusicBakh.Infrastructure.Migration;
 public sealed record MigrationResult(bool PerformedMigration, int MigratedTracks, string? BackupPath);
 
 /// <summary>
-/// Одноразовая миграция userTracks.json → SQLite при первом запуске после апгрейда с 1.0.x.
-/// После переноса записей файл переименовывается в userTracks.json.backup-&lt;timestamp&gt;,
-/// чтобы пользователь мог откатиться вручную при необходимости.
+/// Одноразовая миграция userTracks.json → SQLite при первом запуске после апгрейда с 1.0.0.
+/// Атомарность гарантируется одним DbContext с явной транзакцией: либо все записи
+/// попадают в БД и файл переименовывается в userTracks.json.backup-&lt;timestamp&gt;,
+/// либо ничего не происходит и легаси-файл остаётся на месте для повторной попытки.
+/// Идемпотентность дополнительно подкреплена дедупликацией по FilePath: даже если
+/// миграция запустилась повторно (например, после краша между SaveChanges и File.Move),
+/// уже существующие треки не дублируются.
 /// </summary>
 public sealed class JsonToSqliteMigrationService
 {
     private readonly string _rootDirectory;
-    private readonly ITrackRepository _trackRepository;
+    private readonly Func<LibraryDbContext> _contextFactory;
 
-    public JsonToSqliteMigrationService(string rootDirectory, ITrackRepository trackRepository)
+    public JsonToSqliteMigrationService(string rootDirectory, Func<LibraryDbContext> contextFactory)
     {
         _rootDirectory = rootDirectory;
-        _trackRepository = trackRepository;
+        _contextFactory = contextFactory;
     }
 
     public MigrationResult Run()
@@ -40,18 +44,43 @@ public sealed class JsonToSqliteMigrationService
         var tracks = legacy.Load();
 
         int migrated = 0;
-        foreach (var t in tracks)
+        using (var ctx = _contextFactory())
         {
-            _trackRepository.Add(new Track
+            using var transaction = ctx.Database.BeginTransaction();
+
+            // Дедупликация по FilePath: если миграция уже частично прошла и оборвалась,
+            // повторный запуск не задвоит записи. FilePath уникален для пользовательских
+            // треков (каждый импортированный файл лежит в Music\<guid>.{mp3,wav}).
+            var existingPaths = ctx.Tracks
+                .Where(t => !t.IsBuiltIn)
+                .Select(t => t.FilePath)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var t in tracks)
             {
-                Title = t.Title,
-                Artist = t.Artist,
-                Genre = t.Genre,
-                Duration = TimeSpan.FromSeconds(t.DurationSeconds),
-                FilePath = t.FilePath,
-                CoverPath = t.CoverPath
-            });
-            migrated++;
+                if (existingPaths.Contains(t.FilePath))
+                {
+                    continue;
+                }
+
+                ctx.Tracks.Add(new TrackEntity
+                {
+                    Title = t.Title,
+                    Artist = t.Artist,
+                    Genre = t.Genre,
+                    DurationTicks = TimeSpan.FromSeconds(t.DurationSeconds).Ticks,
+                    FilePath = t.FilePath,
+                    CoverPath = t.CoverPath,
+                    AddedAtUtc = t.AddedAt.Kind == DateTimeKind.Utc
+                        ? t.AddedAt
+                        : t.AddedAt.ToUniversalTime(),
+                    IsBuiltIn = false
+                });
+                migrated++;
+            }
+
+            ctx.SaveChanges();
+            transaction.Commit();
         }
 
         var backupPath = Path.Combine(
