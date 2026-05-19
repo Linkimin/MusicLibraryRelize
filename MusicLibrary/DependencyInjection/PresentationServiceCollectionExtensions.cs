@@ -33,6 +33,12 @@ public static class PresentationServiceCollectionExtensions
         services.AddTransient<AddTrackViewModel>();
         services.AddTransient<StatsViewModel>();
 
+        // MEDI не умеет автоматически генерировать Func<T> для DI — регистрируем явно.
+        // Каждый вызов factory резолвит свежий transient StatsViewModel из корня
+        // провайдера, поэтому окно статистики всегда видит актуальные данные.
+        services.AddSingleton<Func<StatsViewModel>>(sp =>
+            () => sp.GetRequiredService<StatsViewModel>());
+
         // Окна.
         services.AddTransient<MainWindow>();
 
