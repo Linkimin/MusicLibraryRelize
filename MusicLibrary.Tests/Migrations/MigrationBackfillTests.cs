@@ -1,5 +1,4 @@
-using MusicBakh.Core.Domain;
-using MusicBakh.Infrastructure.Persistence.Repositories;
+using Microsoft.EntityFrameworkCore;
 using MusicBakh.Infrastructure.Search;
 using MusicLibrary.Tests.TestSupport;
 using Xunit;
@@ -27,23 +26,29 @@ public sealed class MigrationBackfillTests
         // Фаза 1: схема «как в 1.0.1» — последняя миграция перед FTS.
         factory.MigrateUpTo(MigrationAddTrackAlbum);
 
-        // Фаза 2: пользовательские данные ещё до апгрейда. Используем репозиторий,
-        // а не сырой EF — он ближе к реальному пути добавления треков в проде.
-        var repo = new SqliteTrackRepository(factory.CreateContext);
-        for (int i = 1; i <= 5; i++)
+        // Фаза 2: пользовательские данные ещё до апгрейда. Вставляем через raw SQL,
+        // а не через SqliteTrackRepository: репозиторий построен против ТЕКУЩЕЙ EF-модели
+        // (с Rating/Reaction из 1.0.3), которые в схеме 1.0.1 ещё не существуют. Raw SQL
+        // честнее имитирует данные, реально лежащие в БД пользователя на момент апгрейда.
+        using (var ctx = factory.CreateContext())
         {
-            repo.Add(new Track
+            for (int i = 1; i <= 5; i++)
             {
-                Title = $"Track {i}",
-                Artist = $"artist{i}",
-                Album = $"album{i}",
-                FilePath = $"{i}.mp3"
-            });
+                ctx.Database.ExecuteSqlInterpolated($@"
+                    INSERT INTO Tracks (Title, Artist, Album, Genre, DurationTicks, FilePath, CoverPath, AddedAtUtc, IsBuiltIn)
+                    VALUES ({"Track " + i}, {"artist" + i}, {"album" + i}, '', 0, {i + ".mp3"}, '', '2026-01-01 00:00:00', 0)");
+            }
         }
 
         // Фаза 3: апгрейд до 1.0.2 — создаётся TracksFts и выполняется backfill
         // существующих строк через INSERT INTO TracksFts SELECT FROM Tracks.
         factory.MigrateUpTo(MigrationAddTracksFts);
+
+        // Фаза 4: достигаем head'а (применяем 1.0.3+ миграции, такие как
+        // AddTrackRatingAndReaction). Эти миграции не трогают FTS-индекс, поэтому
+        // backfill, проверяемый ниже, остаётся следствием именно AddTracksFts.
+        // Без head'а EF-модель текущего кода рассинхронизирована со схемой.
+        factory.MigrateUpToHead();
 
         var service = new SqliteFtsSearchService(factory.CreateContext);
 
@@ -65,18 +70,29 @@ public sealed class MigrationBackfillTests
 
         factory.MigrateUpTo(MigrationAddTrackAlbum);
 
-        var repo = new SqliteTrackRepository(factory.CreateContext);
-        repo.Add(new Track { Title = "Old Song", Artist = "Pre Upgrade", FilePath = "1.mp3" });
+        // Pre-upgrade row через raw SQL — см. комментарий в Migrate_From_1_0_1_State_*.
+        using (var ctx = factory.CreateContext())
+        {
+            ctx.Database.ExecuteSqlInterpolated($@"
+                INSERT INTO Tracks (Title, Artist, Album, Genre, DurationTicks, FilePath, CoverPath, AddedAtUtc, IsBuiltIn)
+                VALUES ('Old Song', 'Pre Upgrade', '', '', 0, '1.mp3', '', '2026-01-01 00:00:00', 0)");
+        }
 
         factory.MigrateUpTo(MigrationAddTracksFts);
+
+        // Достигаем head'а: дотягиваем 1.0.3+ миграции (AddTrackRatingAndReaction и т.д.).
+        // FTS-индекс не трогается, backfill из AddTracksFts по-прежнему — единственный
+        // путь попадания старых треков в TracksFts.
+        factory.MigrateUpToHead();
 
         // Старая запись попала в индекс через backfill.
         var service = new SqliteFtsSearchService(factory.CreateContext);
         Assert.Single(service.Search("pre"));
 
-        // А новые вставки после апгрейда должны индексироваться триггером Tracks_ai —
-        // backfill ничего не должен ломать в обычном run-time пути.
-        repo.Add(new Track { Title = "Fresh Song", Artist = "Post Upgrade", FilePath = "2.mp3" });
+        // А новые вставки через репозиторий должны попадать в TracksFts через триггер
+        // Tracks_ai. Это в т.ч. проверка «backfill ничего не сломал в обычном пути».
+        var repo = new MusicBakh.Infrastructure.Persistence.Repositories.SqliteTrackRepository(factory.CreateContext);
+        repo.Add(new MusicBakh.Core.Domain.Track { Title = "Fresh Song", Artist = "Post Upgrade", FilePath = "2.mp3" });
 
         Assert.Single(service.Search("post"));
         Assert.Single(service.Search("fresh"));

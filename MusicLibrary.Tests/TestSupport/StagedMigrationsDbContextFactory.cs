@@ -52,5 +52,16 @@ internal sealed class StagedMigrationsDbContextFactory : IDisposable
         migrator.Migrate(targetMigration);
     }
 
+    /// <summary>
+    /// Накатывает все оставшиеся миграции до head'а. Полезно, когда тест начал с
+    /// промежуточного состояния схемы (через <see cref="MigrateUpTo"/>) и затем
+    /// хочет завершить апгрейд, чтобы дальше работать через текущие репозитории.
+    /// </summary>
+    public void MigrateUpToHead()
+    {
+        using var ctx = new LibraryDbContext(_options);
+        ctx.Database.Migrate();
+    }
+
     public void Dispose() => _connection.Dispose();
 }

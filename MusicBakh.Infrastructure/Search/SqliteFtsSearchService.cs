@@ -66,6 +66,8 @@ LIMIT {limit}")
         Duration = TimeSpan.FromTicks(e.DurationTicks),
         FilePath = e.FilePath,
         CoverPath = e.CoverPath,
+        Rating = e.Rating,
+        Reaction = (TrackReaction)e.Reaction,
         IsBuiltIn = e.IsBuiltIn
     };
 }

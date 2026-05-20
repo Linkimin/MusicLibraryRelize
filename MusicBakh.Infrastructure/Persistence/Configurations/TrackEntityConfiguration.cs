@@ -21,10 +21,14 @@ internal sealed class TrackEntityConfiguration : IEntityTypeConfiguration<TrackE
         builder.Property(t => t.Genre).HasMaxLength(200);
         builder.Property(t => t.FilePath).IsRequired().HasMaxLength(1000);
         builder.Property(t => t.CoverPath).HasMaxLength(1000);
+        builder.Property(t => t.Rating).IsRequired().HasDefaultValue(0);
+        builder.Property(t => t.Reaction).IsRequired().HasDefaultValue(0);
 
         builder.HasIndex(t => t.Artist);
         builder.HasIndex(t => t.Album);
         builder.HasIndex(t => t.Genre);
+        builder.HasIndex(t => t.Rating);
+        builder.HasIndex(t => t.Reaction);
         builder.HasIndex(t => t.IsBuiltIn);
     }
 }

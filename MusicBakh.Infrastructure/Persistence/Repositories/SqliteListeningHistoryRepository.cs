@@ -157,6 +157,8 @@ public sealed class SqliteListeningHistoryRepository : IListeningHistoryReposito
         Duration = TimeSpan.FromTicks(e.DurationTicks),
         FilePath = e.FilePath,
         CoverPath = e.CoverPath,
+        Rating = e.Rating,
+        Reaction = (TrackReaction)e.Reaction,
         // Критично: IsBuiltIn должен дотечь до UI. Иначе после перезапуска
         // history-replay вернёт встроенный трек с IsBuiltIn=false, и кнопка
         // «Удалить» активируется на shipped-файлы из install-папки.
