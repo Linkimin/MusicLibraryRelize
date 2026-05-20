@@ -71,12 +71,127 @@
                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
                                  KeyDown="OnSearchBoxKeyDown" />
                     </StackPanel>
-                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
                         <TextBlock Text="Фильтр по жанру" Foreground="{StaticResource ForegroundBrush}" FontWeight="SemiBold" FontSize="18" Margin="0,0,0,10" />
                         <ComboBox ItemsSource="{Binding Genres}"
                                   SelectedItem="{Binding SelectedGenre, Mode=TwoWay}"
                                   Style="{StaticResource GenreComboBoxStyle}" />
                     </StackPanel>
+
+                    <!-- Дополнительные фильтры: рейтинг, реакция, теги. -->
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Дополнительные фильтры" Foreground="{StaticResource ForegroundBrush}" FontWeight="SemiBold" FontSize="18" />
+                            <Button Grid.Column="1" Content="Сбросить" Command="{Binding ClearFiltersCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="26" Padding="10,0" FontSize="11" />
+                        </Grid>
+
+                        <!-- Рейтинг -->
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Рейтинг" Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" />
+                            <TextBlock Grid.Column="1" Text="{Binding MinRatingDisplayText}" Foreground="{StaticResource PrimaryBrush}" FontSize="12" />
+                        </Grid>
+                        <Slider Minimum="0" Maximum="5"
+                                Value="{Binding MinRating, Mode=TwoWay}"
+                                TickFrequency="1"
+                                IsSnapToTickEnabled="True"
+                                TickPlacement="BottomRight"
+                                Margin="0,0,0,12" />
+
+                        <!-- Реакция -->
+                        <TextBlock Text="Реакция" Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" Margin="0,0,0,4" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <StackPanel.Resources>
+                                <Style x:Key="ReactionFilterButtonStyle" TargetType="Button">
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="BorderThickness" Value="1" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource GoldBorderBrush}" />
+                                    <Setter Property="Cursor" Value="Hand" />
+                                    <Setter Property="Padding" Value="10,4" />
+                                    <Setter Property="Margin" Value="0,0,6,0" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}"
+                                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                                        CornerRadius="6"
+                                                        Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </StackPanel.Resources>
+                            <Button Style="{StaticResource ReactionFilterButtonStyle}"
+                                    Command="{Binding SetReactionFilterCommand}" CommandParameter="Any" ToolTip="Любая реакция">
+                                <TextBlock Text="Все" FontSize="12"
+                                           Foreground="{Binding ReactionFilter, Converter={StaticResource ReactionMatchToBrushConverter}, ConverterParameter=Any}" />
+                            </Button>
+                            <Button Style="{StaticResource ReactionFilterButtonStyle}"
+                                    Command="{Binding SetReactionFilterCommand}" CommandParameter="Liked" ToolTip="Только лайки">
+                                <TextBlock Text="♥" FontSize="16"
+                                           Foreground="{Binding ReactionFilter, Converter={StaticResource LikeReactionToBrushConverter}, ConverterParameter=Liked}" />
+                            </Button>
+                            <Button Style="{StaticResource ReactionFilterButtonStyle}"
+                                    Command="{Binding SetReactionFilterCommand}" CommandParameter="Disliked" ToolTip="Только дизлайки">
+                                <Grid Width="18" Height="20">
+                                    <TextBlock Text="♥" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{Binding ReactionFilter, Converter={StaticResource DislikeReactionToBrushConverter}, ConverterParameter=Disliked}" />
+                                    <Line X1="1" Y1="18" X2="17" Y2="2" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          Stroke="{Binding ReactionFilter, Converter={StaticResource DislikeReactionToBrushConverter}, ConverterParameter=Disliked}" />
+                                </Grid>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Теги -->
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Теги" Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" />
+                            <Button Grid.Column="1" Content="↻" Command="{Binding RefreshTagFiltersCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="20" Padding="8,0" FontSize="11" ToolTip="Подтянуть свежий список тегов" />
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding TagFilters}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Cursor="Hand">
+                                        <Border.Style>
+                                            <Style TargetType="Border" BasedOn="{StaticResource TagChipStyle}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="Background" Value="#33D4A574" />
+                                                        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Border.InputBindings>
+                                            <MouseBinding MouseAction="LeftClick"
+                                                          Command="{Binding DataContext.ToggleTagFilterCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                          CommandParameter="{Binding}" />
+                                        </Border.InputBindings>
+                                        <TextBlock Text="{Binding Tag.Name}" Style="{StaticResource TagChipTextStyle}" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
                     <ListBox ItemsSource="{Binding DisplayedTracks}"
                              SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
                              ItemTemplate="{StaticResource TrackCardTemplate}"

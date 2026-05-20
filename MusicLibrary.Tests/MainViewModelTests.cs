@@ -30,6 +30,50 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void MinRatingDisplayText_Reflects_Slider_Value()
+    {
+        var viewModel = CreateViewModel();
+        Assert.Equal("Без фильтра", viewModel.MinRatingDisplayText);
+        viewModel.MinRating = 4;
+        Assert.Equal("≥ 4★", viewModel.MinRatingDisplayText);
+    }
+
+    [Fact]
+    public void SetReactionFilterCommand_Toggle_Off_When_Same_Reaction_Clicked_Twice()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SetReactionFilterCommand.Execute("Liked");
+        Assert.Equal(TrackReaction.Liked, viewModel.ReactionFilter);
+        viewModel.SetReactionFilterCommand.Execute("Liked");
+        Assert.Null(viewModel.ReactionFilter);
+    }
+
+    [Fact]
+    public void SetReactionFilterCommand_Any_Clears_Filter()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.ReactionFilter = TrackReaction.Disliked;
+        viewModel.SetReactionFilterCommand.Execute("Any");
+        Assert.Null(viewModel.ReactionFilter);
+    }
+
+    [Fact]
+    public void ClearFiltersCommand_Resets_All_Filters()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SearchText = "anything";
+        viewModel.MinRating = 3;
+        viewModel.ReactionFilter = TrackReaction.Liked;
+
+        viewModel.ClearFiltersCommand.Execute(null);
+
+        Assert.Equal(string.Empty, viewModel.SearchText);
+        Assert.Equal(0, viewModel.MinRating);
+        Assert.Null(viewModel.ReactionFilter);
+        Assert.Empty(viewModel.SelectedTagIds);
+    }
+
+    [Fact]
     public void SetRatingCommand_Updates_Selected_Track_And_Repository()
     {
         var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3" } };

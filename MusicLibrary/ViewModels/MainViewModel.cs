@@ -43,6 +43,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private int _minRating;
     private TrackReaction? _reactionFilter;
     private readonly ObservableCollection<int> _selectedTagIds = new();
+    private readonly ObservableCollection<TagFilterItem> _tagFilters = new();
     private Track? _selectedTrack;
     private Track? _playingTrack;
     private string _statusMessage = "Выберите трек для воспроизведения.";
@@ -84,6 +85,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _tagsWindowService = tagsWindowService;
         _tagRepository = tagRepository;
         _selectedTagIds.CollectionChanged += (_, _) => ApplyFilters();
+        LoadTagFilters();
 
         _allTracks = new List<Track>(trackRepository.GetAll());
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
@@ -122,6 +124,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SetReactionCommand = new RelayCommand(
             parameter => SetReactionOnSelected(parameter),
             _ => SelectedTrack is not null);
+        ToggleTagFilterCommand = new RelayCommand(parameter => ToggleTagFilter(parameter as TagFilterItem));
+        RefreshTagFiltersCommand = new RelayCommand(_ => LoadTagFilters());
+        ClearFiltersCommand = new RelayCommand(_ => ClearFilters());
+        SetReactionFilterCommand = new RelayCommand(parameter => SetReactionFilter(parameter));
 
         SkipForwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(10)), _ => PlayingTrack is not null);
         SkipBackwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(-10)), _ => PlayingTrack is not null);
@@ -154,6 +160,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand OpenTagsCommand { get; }
     public ICommand SetRatingCommand { get; }
     public ICommand SetReactionCommand { get; }
+    public ICommand ToggleTagFilterCommand { get; }
+    public ICommand RefreshTagFiltersCommand { get; }
+    public ICommand ClearFiltersCommand { get; }
+    public ICommand SetReactionFilterCommand { get; }
+
+    /// <summary>Чипы тегов для левой колонки. Обновляются вручную через RefreshTagFiltersCommand.</summary>
+    public ObservableCollection<TagFilterItem> TagFilters => _tagFilters;
     public ICommand SkipForwardCommand { get; }
     public ICommand SkipBackwardCommand { get; }
     public ICommand PreviousTrackCommand { get; }
@@ -200,10 +213,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             int clamped = Math.Clamp(value, 0, 5);
             if (SetProperty(ref _minRating, clamped))
             {
+                OnPropertyChanged(nameof(MinRatingDisplayText));
                 ApplyFilters();
             }
         }
     }
+
+    /// <summary>Подпись слайдера рейтинга: «Без фильтра» или «≥ N★».</summary>
+    public string MinRatingDisplayText =>
+        _minRating <= 0 ? "Без фильтра" : $"≥ {_minRating}★";
 
     /// <summary>Фильтр по реакции. null = «любая реакция».</summary>
     public TrackReaction? ReactionFilter
@@ -527,6 +545,72 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         if (wasSelected) SelectedTrack = updated;
         if (wasPlaying) PlayingTrack = updated;
+    }
+
+    private void LoadTagFilters()
+    {
+        if (_tagRepository is null) return;
+        var fresh = _tagRepository.GetAll();
+        var stillSelected = new HashSet<int>(_tagFilters.Where(f => f.IsSelected).Select(f => f.Tag.Id));
+        _tagFilters.Clear();
+        foreach (var tag in fresh)
+        {
+            _tagFilters.Add(new TagFilterItem(tag, stillSelected.Contains(tag.Id)));
+        }
+        // Если какой-то тег был удалён, убираем его id из активного фильтра.
+        var freshIds = new HashSet<int>(fresh.Select(t => t.Id));
+        for (int i = _selectedTagIds.Count - 1; i >= 0; i--)
+        {
+            if (!freshIds.Contains(_selectedTagIds[i]))
+            {
+                _selectedTagIds.RemoveAt(i);
+            }
+        }
+    }
+
+    private void ToggleTagFilter(TagFilterItem? item)
+    {
+        if (item is null) return;
+        item.IsSelected = !item.IsSelected;
+        if (item.IsSelected)
+        {
+            if (!_selectedTagIds.Contains(item.Tag.Id))
+            {
+                _selectedTagIds.Add(item.Tag.Id);
+            }
+        }
+        else
+        {
+            _selectedTagIds.Remove(item.Tag.Id);
+        }
+    }
+
+    private void SetReactionFilter(object? parameter)
+    {
+        // null/«Any» → выключить фильтр; «Liked»/«Disliked» → включить.
+        // Повторный клик по активной кнопке сбрасывает в null (как и SetReactionCommand).
+        if (parameter is null || parameter is string s1 && string.Equals(s1, "Any", StringComparison.OrdinalIgnoreCase))
+        {
+            ReactionFilter = null;
+            return;
+        }
+        TrackReaction requested = parameter switch
+        {
+            TrackReaction r => r,
+            string s when Enum.TryParse<TrackReaction>(s, ignoreCase: true, out var parsed) => parsed,
+            _ => TrackReaction.None
+        };
+        ReactionFilter = ReactionFilter == requested ? null : requested;
+    }
+
+    private void ClearFilters()
+    {
+        SearchText = string.Empty;
+        SelectedGenre = AllGenres;
+        MinRating = 0;
+        ReactionFilter = null;
+        foreach (var item in _tagFilters) item.IsSelected = false;
+        _selectedTagIds.Clear();
     }
 
     private static bool TryParseInt(object? parameter, out int value)

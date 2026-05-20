@@ -17,7 +17,17 @@ public sealed class ReactionMatchToBrushConverter : IValueConverter
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is not TrackReaction current || parameter is not string target)
+        if (parameter is not string target)
+        {
+            return InactiveBrush;
+        }
+        // Спец-параметр "Any" → активен, когда фильтр реакции выключен (value == null).
+        // Используется кнопкой «Все» в фильтр-панели.
+        if (string.Equals(target, "Any", StringComparison.OrdinalIgnoreCase))
+        {
+            return value is null ? ActiveBrush : InactiveBrush;
+        }
+        if (value is not TrackReaction current)
         {
             return InactiveBrush;
         }
