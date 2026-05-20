@@ -16,6 +16,18 @@ public sealed class Track
     public string CoverPath { get; init; } = string.Empty;
 
     /// <summary>
+    /// Оценка пользователя в звёздах, 0..5. 0 означает «не оценено» (UI показывает
+    /// все звезды пустыми). Семантика «0 = unrated» важна для фильтра по рейтингу:
+    /// «показать с рейтингом ≥ N» при N=0 равно «показать всё».
+    /// </summary>
+    public int Rating { get; init; }
+
+    /// <summary>
+    /// Бинарная реакция «лайк / дизлайк», независимая от Rating. None — не выставлена.
+    /// </summary>
+    public TrackReaction Reaction { get; init; }
+
+    /// <summary>
     /// Признак встроенного (seed) трека: такие треки нельзя удалять и менять, они
     /// поставляются вместе с приложением. Пользовательские треки имеют IsBuiltIn=false.
     /// </summary>

@@ -4,6 +4,7 @@ using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
 using MusicBakh.Infrastructure.Playback;
 using MusicLibrary.Commands;
+using MusicLibrary.Services.Library;
 using MusicLibrary.Views;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -33,10 +34,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IPlayerSettingsRepository _playerSettingsRepository;
     private readonly ISearchService? _searchService;
     private readonly IStatsWindowService? _statsWindowService;
+    private readonly ITagsWindowService? _tagsWindowService;
+    private readonly ITagRepository? _tagRepository;
     private readonly DispatcherTimer _progressTimer;
 
     private string _selectedGenre = AllGenres;
     private string _searchText = string.Empty;
+    private int _minRating;
+    private TrackReaction? _reactionFilter;
+    private readonly Dictionary<int, ObservableCollection<Tag>> _tagsByTrackId = new();
+    private readonly ObservableCollection<int> _selectedTagIds = new();
+    private readonly ObservableCollection<TagFilterItem> _tagFilters = new();
     private Track? _selectedTrack;
     private Track? _playingTrack;
     private string _statusMessage = "Выберите трек для воспроизведения.";
@@ -61,7 +69,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IAddTrackDialogService? addTrackDialogService = null,
         IConfirmationService? confirmationService = null,
         ISearchService? searchService = null,
-        IStatsWindowService? statsWindowService = null)
+        IStatsWindowService? statsWindowService = null,
+        ITagRepository? tagRepository = null,
+        ITagsWindowService? tagsWindowService = null)
     {
         _trackRepository = trackRepository;
         _fileService = fileService;
@@ -73,8 +83,22 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _confirmationService = confirmationService;
         _searchService = searchService;
         _statsWindowService = statsWindowService;
+        _tagsWindowService = tagsWindowService;
+        _tagRepository = tagRepository;
+        _selectedTagIds.CollectionChanged += (_, _) => ApplyFilters();
+        LoadTagFilters();
 
         _allTracks = new List<Track>(trackRepository.GetAll());
+
+        // Заполняем кэш тегов при старте: один запрос на трек.
+        if (_tagRepository is not null)
+        {
+            foreach (var t in _allTracks)
+            {
+                _tagsByTrackId[t.Id] = new ObservableCollection<Tag>(_tagRepository.GetTagsForTrack(t.Id));
+            }
+        }
+
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
         PlaybackHistory = new ObservableCollection<PlaybackEntry>();
         Genres = new ObservableCollection<string>(
@@ -100,6 +124,57 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         OpenStatsCommand = new RelayCommand(
             _ => _statsWindowService?.Show(),
             _ => _statsWindowService is not null);
+        OpenTagsCommand = new RelayCommand(
+            _ => _tagsWindowService?.Show(),
+            _ => _tagsWindowService is not null);
+        // Рейтинг и реакция — пользовательская оценка, разрешена и для встроенных
+        // треков (UI ограничивает только удаление seed-треков, не их оценку).
+        SetRatingCommand = new RelayCommand(
+            parameter => SetRatingOnSelected(parameter),
+            _ => SelectedTrack is not null);
+        SetReactionCommand = new RelayCommand(
+            parameter => SetReactionOnSelected(parameter),
+            _ => SelectedTrack is not null);
+        ToggleTagFilterCommand = new RelayCommand(parameter => ToggleTagFilter(parameter as TagFilterItem));
+        RefreshTagFiltersCommand = new RelayCommand(_ => LoadTagFilters());
+        ClearFiltersCommand = new RelayCommand(_ => ClearFilters());
+
+        // Прикрепляем тег к выбранному треку и обновляем кэш.
+        AttachTagToSelectedCommand = new RelayCommand(parameter =>
+        {
+            if (SelectedTrack is null || _tagRepository is null) return;
+            if (parameter is not Tag tag) return;
+            if (_tagsByTrackId.TryGetValue(SelectedTrack.Id, out var existing) &&
+                existing.Any(t => t.Id == tag.Id)) return;
+            _tagRepository.AttachTag(SelectedTrack.Id, tag.Id);
+            if (!_tagsByTrackId.ContainsKey(SelectedTrack.Id))
+                _tagsByTrackId[SelectedTrack.Id] = new ObservableCollection<Tag>();
+            _tagsByTrackId[SelectedTrack.Id].Add(tag);
+            OnPropertyChanged(nameof(AvailableTagsForAttach));
+        });
+
+        // Открепляем тег от выбранного трека и обновляем кэш.
+        DetachTagFromSelectedCommand = new RelayCommand(parameter =>
+        {
+            if (SelectedTrack is null || _tagRepository is null) return;
+            if (parameter is not Tag tag) return;
+            _tagRepository.DetachTag(SelectedTrack.Id, tag.Id);
+            if (_tagsByTrackId.TryGetValue(SelectedTrack.Id, out var collection))
+            {
+                var existingTag = collection.FirstOrDefault(t => t.Id == tag.Id);
+                if (existingTag is not null) collection.Remove(existingTag);
+            }
+            OnPropertyChanged(nameof(AvailableTagsForAttach));
+        });
+        SetReactionFilterCommand = new RelayCommand(parameter => SetReactionFilter(parameter));
+        SetMinRatingCommand = new RelayCommand(parameter =>
+        {
+            if (!TryParseInt(parameter, out int requested)) return;
+            // Toggle: клик по уже активной звезде → 0 («Все»).
+            // Сравниваем по зажатому значению: Execute("9") дважды = 5 → 0.
+            int clamped = Math.Clamp(requested, 0, 5);
+            MinRating = MinRating == clamped ? 0 : clamped;
+        });
 
         SkipForwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(10)), _ => PlayingTrack is not null);
         SkipBackwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(-10)), _ => PlayingTrack is not null);
@@ -129,6 +204,38 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand PlayTrackCommand { get; }
     public ICommand ReplayHistoryEntryCommand { get; }
     public ICommand OpenStatsCommand { get; }
+    public ICommand OpenTagsCommand { get; }
+    public ICommand SetRatingCommand { get; }
+    public ICommand SetReactionCommand { get; }
+    public ICommand ToggleTagFilterCommand { get; }
+    public ICommand RefreshTagFiltersCommand { get; }
+    public ICommand ClearFiltersCommand { get; }
+    public ICommand SetReactionFilterCommand { get; }
+    public ICommand SetMinRatingCommand { get; }
+    public ICommand AttachTagToSelectedCommand { get; }
+    public ICommand DetachTagFromSelectedCommand { get; }
+
+    /// <summary>Кэш тегов по треку. XAML-конвертер использует его для отображения чипов на карточке трека.</summary>
+    public IReadOnlyDictionary<int, ObservableCollection<Tag>> TagsByTrackId => _tagsByTrackId;
+
+    /// <summary>
+    /// Теги, доступные для прикрепления к выбранному треку (глобальный список минус уже прикреплённые).
+    /// Пересчитывается при смене SelectedTrack и при каждой операции attach/detach.
+    /// </summary>
+    public IEnumerable<Tag> AvailableTagsForAttach
+    {
+        get
+        {
+            if (SelectedTrack is null) return Array.Empty<Tag>();
+            var attached = _tagsByTrackId.TryGetValue(SelectedTrack.Id, out var c)
+                ? new HashSet<int>(c.Select(t => t.Id))
+                : new HashSet<int>();
+            return _tagFilters.Where(item => !attached.Contains(item.Tag.Id)).Select(item => item.Tag).ToList();
+        }
+    }
+
+    /// <summary>Чипы тегов для левой колонки. Обновляются вручную через RefreshTagFiltersCommand.</summary>
+    public ObservableCollection<TagFilterItem> TagFilters => _tagFilters;
     public ICommand SkipForwardCommand { get; }
     public ICommand SkipBackwardCommand { get; }
     public ICommand PreviousTrackCommand { get; }
@@ -166,6 +273,41 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>Минимальный рейтинг трека для фильтра (0..5). 0 = фильтр не активен.</summary>
+    public int MinRating
+    {
+        get => _minRating;
+        set
+        {
+            int clamped = Math.Clamp(value, 0, 5);
+            if (SetProperty(ref _minRating, clamped))
+            {
+                OnPropertyChanged(nameof(MinRatingDisplayText));
+                ApplyFilters();
+            }
+        }
+    }
+
+    /// <summary>Подпись слайдера рейтинга: «Без фильтра» или «≥ N★».</summary>
+    public string MinRatingDisplayText =>
+        _minRating <= 0 ? "Без фильтра" : $"≥ {_minRating}★";
+
+    /// <summary>Фильтр по реакции. null = «любая реакция».</summary>
+    public TrackReaction? ReactionFilter
+    {
+        get => _reactionFilter;
+        set
+        {
+            if (SetProperty(ref _reactionFilter, value))
+            {
+                ApplyFilters();
+            }
+        }
+    }
+
+    /// <summary>Идентификаторы тегов, активных в фильтре (OR-семантика). UI добавляет/удаляет через эту коллекцию.</summary>
+    public ObservableCollection<int> SelectedTagIds => _selectedTagIds;
+
     public Track? SelectedTrack
     {
         get => _selectedTrack;
@@ -179,6 +321,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowOtherPlayingBadge));
                 OnPropertyChanged(nameof(OtherPlayingText));
                 OnPropertyChanged(nameof(CanDeleteSelected));
+                OnPropertyChanged(nameof(AvailableTagsForAttach));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -406,6 +549,154 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             SelectedTrack = null;
         }
+
+        // Удаляем запись кэша тегов вместе с треком.
+        _tagsByTrackId.Remove(track.Id);
+    }
+
+    private void SetRatingOnSelected(object? parameter)
+    {
+        if (SelectedTrack is null) return;
+        if (!TryParseInt(parameter, out int requested)) return;
+        // Toggle: повторный клик по той же звезде сбрасывает рейтинг в 0.
+        int next = SelectedTrack.Rating == requested ? 0 : Math.Clamp(requested, 0, 5);
+        UpdateSelectedTrack(CloneTrack(SelectedTrack, rating: next));
+    }
+
+    private void SetReactionOnSelected(object? parameter)
+    {
+        if (SelectedTrack is null) return;
+        TrackReaction requested = parameter switch
+        {
+            TrackReaction r => r,
+            string s when Enum.TryParse<TrackReaction>(s, ignoreCase: true, out var parsed) => parsed,
+            _ => TrackReaction.None
+        };
+        // Toggle: повторный клик по уже активной реакции сбрасывает в None.
+        TrackReaction next = SelectedTrack.Reaction == requested ? TrackReaction.None : requested;
+        UpdateSelectedTrack(CloneTrack(SelectedTrack, reaction: next));
+    }
+
+    // Track — sealed class с init-only свойствами, `with` для него не работает,
+    // поэтому копируем вручную. Если в будущем Track станет record — можно убрать.
+    private static Track CloneTrack(Track source, int? rating = null, TrackReaction? reaction = null) => new()
+    {
+        Id = source.Id,
+        Title = source.Title,
+        Artist = source.Artist,
+        Album = source.Album,
+        Genre = source.Genre,
+        Duration = source.Duration,
+        FilePath = source.FilePath,
+        CoverPath = source.CoverPath,
+        Rating = rating ?? source.Rating,
+        Reaction = reaction ?? source.Reaction,
+        IsBuiltIn = source.IsBuiltIn
+    };
+
+    private void UpdateSelectedTrack(Track updated)
+    {
+        // Капчуем намерение ДО мутации коллекций. Иначе после
+        // DisplayedTracks[i] = updated ListBox увидит Remove+Add, не найдёт
+        // старый объект SelectedItem в коллекции и сбросит SelectedTrack в null
+        // через TwoWay-биндинг — после этого мы уже не сможем понять, нужно ли
+        // восстанавливать выделение.
+        bool wasSelected = SelectedTrack?.Id == updated.Id;
+        bool wasPlaying = PlayingTrack?.Id == updated.Id;
+
+        _trackRepository.Update(updated);
+
+        int allIndex = _allTracks.FindIndex(t => t.Id == updated.Id);
+        if (allIndex >= 0) _allTracks[allIndex] = updated;
+
+        int displayedIndex = -1;
+        for (int i = 0; i < DisplayedTracks.Count; i++)
+        {
+            if (DisplayedTracks[i].Id == updated.Id) { displayedIndex = i; break; }
+        }
+        if (displayedIndex >= 0) DisplayedTracks[displayedIndex] = updated;
+
+        if (wasSelected) SelectedTrack = updated;
+        if (wasPlaying) PlayingTrack = updated;
+    }
+
+    private void LoadTagFilters()
+    {
+        if (_tagRepository is null) return;
+        var fresh = _tagRepository.GetAll();
+        var stillSelected = new HashSet<int>(_tagFilters.Where(f => f.IsSelected).Select(f => f.Tag.Id));
+        _tagFilters.Clear();
+        foreach (var tag in fresh)
+        {
+            _tagFilters.Add(new TagFilterItem(tag, stillSelected.Contains(tag.Id)));
+        }
+        // Если какой-то тег был удалён, убираем его id из активного фильтра.
+        var freshIds = new HashSet<int>(fresh.Select(t => t.Id));
+        for (int i = _selectedTagIds.Count - 1; i >= 0; i--)
+        {
+            if (!freshIds.Contains(_selectedTagIds[i]))
+            {
+                _selectedTagIds.RemoveAt(i);
+            }
+        }
+    }
+
+    private void ToggleTagFilter(TagFilterItem? item)
+    {
+        if (item is null) return;
+        item.IsSelected = !item.IsSelected;
+        if (item.IsSelected)
+        {
+            if (!_selectedTagIds.Contains(item.Tag.Id))
+            {
+                _selectedTagIds.Add(item.Tag.Id);
+            }
+        }
+        else
+        {
+            _selectedTagIds.Remove(item.Tag.Id);
+        }
+    }
+
+    private void SetReactionFilter(object? parameter)
+    {
+        // null/«Any» → выключить фильтр; «Liked»/«Disliked» → включить.
+        // Повторный клик по активной кнопке сбрасывает в null (как и SetReactionCommand).
+        if (parameter is null || parameter is string s1 && string.Equals(s1, "Any", StringComparison.OrdinalIgnoreCase))
+        {
+            ReactionFilter = null;
+            return;
+        }
+        TrackReaction requested = parameter switch
+        {
+            TrackReaction r => r,
+            string s when Enum.TryParse<TrackReaction>(s, ignoreCase: true, out var parsed) => parsed,
+            _ => TrackReaction.None
+        };
+        ReactionFilter = ReactionFilter == requested ? null : requested;
+    }
+
+    private void ClearFilters()
+    {
+        SearchText = string.Empty;
+        SelectedGenre = AllGenres;
+        MinRating = 0;
+        ReactionFilter = null;
+        foreach (var item in _tagFilters) item.IsSelected = false;
+        _selectedTagIds.Clear();
+    }
+
+    private static bool TryParseInt(object? parameter, out int value)
+    {
+        if (parameter is int i) { value = i; return true; }
+        if (parameter is string s &&
+            int.TryParse(s, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out value))
+        {
+            return true;
+        }
+        value = 0;
+        return false;
     }
 
     public void AddTrack(Track track)
@@ -427,35 +718,40 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             DisplayedTracks.Add(track);
         }
+
+        // Новый трек ещё не имеет тегов — инициализируем пустую коллекцию в кэше.
+        _tagsByTrackId[track.Id] = new ObservableCollection<Tag>();
     }
 
     private void ApplyFilters()
     {
-        DisplayedTracks.Clear();
-
-        // Поиск идёт через ISearchService (FTS5 SQL под капотом), фильтр по жанру —
-        // отдельным in-memory пересечением. Это держит контракт ISearchService узким
-        // (одна строка → треки) и позволяет тестам подкидывать stub.
-        IEnumerable<Track> tracks;
+        // Собираем снимок активных критериев и отдаём в чистую функцию LibraryFilter.
+        // Это держит метод тонким и позволяет юнит-тестам фильтра жить без WPF.
+        IReadOnlyList<Track>? hits = null;
         if (!string.IsNullOrWhiteSpace(SearchText) && _searchService is not null)
         {
-            var hits = _searchService.Search(SearchText);
-            var hitIds = new HashSet<int>(hits.Select(t => t.Id));
-            // Возвращаем из _allTracks, чтобы порядок и идентичность объектов совпадали с
-            // главной коллекцией (Selected/Playing-сравнения по reference в других местах).
-            tracks = _allTracks.Where(t => hitIds.Contains(t.Id));
-        }
-        else
-        {
-            tracks = _allTracks;
+            hits = _searchService.Search(SearchText);
         }
 
-        if (SelectedGenre != AllGenres)
-        {
-            tracks = tracks.Where(track => track.Genre == SelectedGenre);
-        }
+        var criteria = new LibraryFilterCriteria(
+            hits,
+            SelectedGenre == AllGenres ? null : SelectedGenre,
+            MinRating,
+            ReactionFilter,
+            _selectedTagIds);
 
-        foreach (Track track in tracks)
+        // Адаптер для LibraryFilter: ему нужен делегат «id → список тегов-id»,
+        // чтобы не тащить ITagRepository в pure-функцию. Если репозитория нет
+        // (старые unit-тесты с null), фильтр по тегам в criteria всё равно
+        // не активируется (пустой SelectedTagIds), так что делегат не позовётся.
+        Func<int, IReadOnlyList<int>>? tagsProvider = _tagRepository is null
+            ? null
+            : trackId => _tagRepository.GetTagsForTrack(trackId).Select(t => t.Id).ToList();
+
+        var filtered = LibraryFilter.Apply(_allTracks, criteria, tagsProvider);
+
+        DisplayedTracks.Clear();
+        foreach (var track in filtered)
         {
             DisplayedTracks.Add(track);
         }

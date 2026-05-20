@@ -127,6 +127,73 @@ public sealed class SqliteTrackRepositoryTests
     }
 
     [Fact]
+    public void Add_Persists_Rating_And_Reaction()
+    {
+        using var factory = new InMemorySqliteDbContextFactory();
+        var repository = new SqliteTrackRepository(factory.CreateContext);
+
+        var saved = repository.Add(new Track
+        {
+            Title = "Hit",
+            Artist = "Band",
+            FilePath = "h.mp3",
+            Rating = 4,
+            Reaction = TrackReaction.Liked
+        });
+
+        var roundtrip = repository.FindById(saved.Id);
+        Assert.NotNull(roundtrip);
+        Assert.Equal(4, roundtrip!.Rating);
+        Assert.Equal(TrackReaction.Liked, roundtrip.Reaction);
+    }
+
+    [Fact]
+    public void Add_Defaults_Rating_To_Zero_And_Reaction_To_None()
+    {
+        using var factory = new InMemorySqliteDbContextFactory();
+        var repository = new SqliteTrackRepository(factory.CreateContext);
+
+        var saved = repository.Add(new Track { Title = "X", Artist = "Y", FilePath = "x.mp3" });
+
+        Assert.Equal(0, saved.Rating);
+        Assert.Equal(TrackReaction.None, saved.Reaction);
+    }
+
+    [Fact]
+    public void Update_Changes_Rating_And_Reaction_Without_Resetting_Other_Fields()
+    {
+        using var factory = new InMemorySqliteDbContextFactory();
+        var repository = new SqliteTrackRepository(factory.CreateContext);
+        var saved = repository.Add(new Track
+        {
+            Title = "Original",
+            Artist = "Artist",
+            Album = "Album",
+            Genre = "Rock",
+            FilePath = "f.mp3"
+        });
+
+        repository.Update(new Track
+        {
+            Id = saved.Id,
+            Title = "Original",
+            Artist = "Artist",
+            Album = "Album",
+            Genre = "Rock",
+            FilePath = "f.mp3",
+            Rating = 5,
+            Reaction = TrackReaction.Disliked
+        });
+
+        var updated = repository.FindById(saved.Id);
+        Assert.NotNull(updated);
+        Assert.Equal(5, updated!.Rating);
+        Assert.Equal(TrackReaction.Disliked, updated.Reaction);
+        Assert.Equal("Original", updated.Title);
+        Assert.Equal("Album", updated.Album);
+    }
+
+    [Fact]
     public void GetAll_Orders_BuiltIn_Tracks_First()
     {
         using var factory = new InMemorySqliteDbContextFactory();

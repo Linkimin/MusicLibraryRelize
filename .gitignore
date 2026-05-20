@@ -10,3 +10,4 @@ publish/
 release/
 
 MusicBakh.Infrastructure/design-time.db
+.superpowers/

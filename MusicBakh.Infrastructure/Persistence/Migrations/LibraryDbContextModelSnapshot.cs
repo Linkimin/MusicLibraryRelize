@@ -53,6 +53,29 @@ namespace MusicBakh.Infrastructure.Persistence.Migrations
                     b.ToTable("ListeningHistory", (string)null);
                 });
 
+            modelBuilder.Entity("MusicBakh.Infrastructure.Persistence.Entities.TagEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Tags", (string)null);
+                });
+
             modelBuilder.Entity("MusicBakh.Infrastructure.Persistence.Entities.TrackEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -95,6 +118,16 @@ namespace MusicBakh.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsBuiltIn")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("Rating")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("Reaction")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -110,7 +143,26 @@ namespace MusicBakh.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsBuiltIn");
 
+                    b.HasIndex("Rating");
+
+                    b.HasIndex("Reaction");
+
                     b.ToTable("Tracks", (string)null);
+                });
+
+            modelBuilder.Entity("MusicBakh.Infrastructure.Persistence.Entities.TrackTagEntity", b =>
+                {
+                    b.Property<int>("TrackId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TrackId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("TrackTags", (string)null);
                 });
 
             modelBuilder.Entity("MusicBakh.Infrastructure.Persistence.Entities.ListeningHistoryEntryEntity", b =>
@@ -120,6 +172,25 @@ namespace MusicBakh.Infrastructure.Persistence.Migrations
                         .HasForeignKey("TrackId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Track");
+                });
+
+            modelBuilder.Entity("MusicBakh.Infrastructure.Persistence.Entities.TrackTagEntity", b =>
+                {
+                    b.HasOne("MusicBakh.Infrastructure.Persistence.Entities.TagEntity", "Tag")
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MusicBakh.Infrastructure.Persistence.Entities.TrackEntity", "Track")
+                        .WithMany()
+                        .HasForeignKey("TrackId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tag");
 
                     b.Navigation("Track");
                 });

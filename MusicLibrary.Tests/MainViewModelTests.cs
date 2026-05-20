@@ -30,6 +30,145 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void MinRatingDisplayText_Reflects_Slider_Value()
+    {
+        var viewModel = CreateViewModel();
+        Assert.Equal("Без фильтра", viewModel.MinRatingDisplayText);
+        viewModel.MinRating = 4;
+        Assert.Equal("≥ 4★", viewModel.MinRatingDisplayText);
+    }
+
+    [Fact]
+    public void SetReactionFilterCommand_Toggle_Off_When_Same_Reaction_Clicked_Twice()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SetReactionFilterCommand.Execute("Liked");
+        Assert.Equal(TrackReaction.Liked, viewModel.ReactionFilter);
+        viewModel.SetReactionFilterCommand.Execute("Liked");
+        Assert.Null(viewModel.ReactionFilter);
+    }
+
+    [Fact]
+    public void SetReactionFilterCommand_Any_Clears_Filter()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.ReactionFilter = TrackReaction.Disliked;
+        viewModel.SetReactionFilterCommand.Execute("Any");
+        Assert.Null(viewModel.ReactionFilter);
+    }
+
+    [Fact]
+    public void ClearFiltersCommand_Resets_All_Filters()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SearchText = "anything";
+        viewModel.MinRating = 3;
+        viewModel.ReactionFilter = TrackReaction.Liked;
+
+        viewModel.ClearFiltersCommand.Execute(null);
+
+        Assert.Equal(string.Empty, viewModel.SearchText);
+        Assert.Equal(0, viewModel.MinRating);
+        Assert.Null(viewModel.ReactionFilter);
+        Assert.Empty(viewModel.SelectedTagIds);
+    }
+
+    [Fact]
+    public void SetRatingCommand_Updates_Selected_Track_And_Repository()
+    {
+        var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3" } };
+        var trackRepo = new RecordingTrackRepository(tracks);
+        var viewModel = CreateViewModelWithRepo(trackRepo);
+        viewModel.SelectedTrack = viewModel.DisplayedTracks[0];
+
+        viewModel.SetRatingCommand.Execute("4");
+
+        Assert.Equal(4, viewModel.SelectedTrack!.Rating);
+        Assert.Equal(4, viewModel.DisplayedTracks[0].Rating);
+        Assert.Single(trackRepo.UpdateCalls);
+        Assert.Equal(4, trackRepo.UpdateCalls[0].Rating);
+    }
+
+    [Fact]
+    public void SetRatingCommand_Toggle_Same_Star_Resets_To_Zero()
+    {
+        var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3", Rating = 3 } };
+        var viewModel = CreateViewModelWithRepo(new RecordingTrackRepository(tracks));
+        viewModel.SelectedTrack = viewModel.DisplayedTracks[0];
+
+        viewModel.SetRatingCommand.Execute("3");
+
+        Assert.Equal(0, viewModel.SelectedTrack!.Rating);
+    }
+
+    [Fact]
+    public void SetMinRatingCommand_Toggle_Same_Value_Resets_To_Zero()
+    {
+        var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3" } };
+        var viewModel = CreateViewModelWithRepo(new RecordingTrackRepository(tracks));
+
+        viewModel.SetMinRatingCommand.Execute("4");
+        Assert.Equal(4, viewModel.MinRating);
+
+        viewModel.SetMinRatingCommand.Execute("4");
+        Assert.Equal(0, viewModel.MinRating);
+    }
+
+    [Fact]
+    public void SetMinRatingCommand_Clamps_Out_Of_Range_To_0_5()
+    {
+        var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3" } };
+        var viewModel = CreateViewModelWithRepo(new RecordingTrackRepository(tracks));
+
+        viewModel.SetMinRatingCommand.Execute("9");
+        Assert.Equal(5, viewModel.MinRating); // clamp вверх
+
+        viewModel.SetMinRatingCommand.Execute("9"); // тот же → сбрасывает в 0 (toggle логика)
+        Assert.Equal(0, viewModel.MinRating);
+    }
+
+    [Fact]
+    public void SetReactionCommand_Toggles_Off_When_Same_Reaction_Clicked_Twice()
+    {
+        var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3" } };
+        var trackRepo = new RecordingTrackRepository(tracks);
+        var viewModel = CreateViewModelWithRepo(trackRepo);
+        viewModel.SelectedTrack = viewModel.DisplayedTracks[0];
+
+        viewModel.SetReactionCommand.Execute("Liked");
+        Assert.Equal(TrackReaction.Liked, viewModel.SelectedTrack!.Reaction);
+
+        viewModel.SetReactionCommand.Execute("Liked");
+        Assert.Equal(TrackReaction.None, viewModel.SelectedTrack!.Reaction);
+
+        Assert.Equal(2, trackRepo.UpdateCalls.Count);
+    }
+
+    [Fact]
+    public void SearchText_Preserves_SearchService_Order()
+    {
+        // ISearchService возвращает треки в порядке релевантности (bm25). UI обязан
+        // показать их в том же порядке, иначе ORDER BY bm25 в FTS-сервисе бесполезен.
+        // Регрессия итерации B: ApplyFilters использовала _allTracks.Where(...) и
+        // тем самым возвращала результат в порядке _allTracks (по Id).
+        var tracks = new[]
+        {
+            new Track { Id = 1, Title = "Alpha",   Artist = "A", Genre = "Рок", FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "Beta",    Artist = "B", Genre = "Рок", FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "Gamma",   Artist = "C", Genre = "Рок", FilePath = "3.mp3" }
+        };
+        var rankedSearch = new RankedSearchService(new[] { tracks[1], tracks[0], tracks[2] }); // Beta, Alpha, Gamma
+        var viewModel = CreateViewModelWithSearch(tracks, rankedSearch);
+
+        viewModel.SearchText = "anything";
+
+        Assert.Equal(3, viewModel.DisplayedTracks.Count);
+        Assert.Equal("Beta",  viewModel.DisplayedTracks[0].Title);
+        Assert.Equal("Alpha", viewModel.DisplayedTracks[1].Title);
+        Assert.Equal("Gamma", viewModel.DisplayedTracks[2].Title);
+    }
+
+    [Fact]
     public void SearchText_FiltersDisplayedTracks_ViaSearchService()
     {
         var tracks = new[]
@@ -784,6 +923,38 @@ public sealed class MainViewModelTests
             confirmationService: null);
     }
 
+    private static MainViewModel CreateViewModelWithRepo(RecordingTrackRepository repo)
+    {
+        return new MainViewModel(
+            repo,
+            new FakeFileService(),
+            new FakeSaveFileDialogService(),
+            new FakeAudioPlayerService(),
+            new FakeListeningHistoryRepository(),
+            new FakePlayerSettingsRepository(),
+            addTrackDialogService: null,
+            confirmationService: null);
+    }
+
+    private sealed class RecordingTrackRepository : ITrackRepository
+    {
+        private readonly List<Track> _tracks;
+        public List<Track> UpdateCalls { get; } = new();
+
+        public RecordingTrackRepository(IEnumerable<Track> seed) => _tracks = seed.ToList();
+
+        public IReadOnlyList<Track> GetAll() => _tracks;
+        public Track? FindById(int id) => _tracks.FirstOrDefault(t => t.Id == id);
+        public Track Add(Track track) { _tracks.Add(track); return track; }
+        public void Update(Track track)
+        {
+            int i = _tracks.FindIndex(t => t.Id == track.Id);
+            if (i >= 0) _tracks[i] = track;
+            UpdateCalls.Add(track);
+        }
+        public void Remove(int id) => _tracks.RemoveAll(t => t.Id == id);
+    }
+
     private static MainViewModel CreateViewModelWithSearch(
         IReadOnlyList<Track> tracks,
         ISearchService searchService)
@@ -798,6 +969,18 @@ public sealed class MainViewModelTests
             addTrackDialogService: null,
             confirmationService: null,
             searchService: searchService);
+    }
+
+    private sealed class RankedSearchService : ISearchService
+    {
+        // Возвращает заранее заданный список треков ровно в указанном порядке —
+        // имитирует FTS5 + ORDER BY bm25. Нужен тестам на сохранение порядка.
+        private readonly IReadOnlyList<Track> _ranked;
+
+        public RankedSearchService(IReadOnlyList<Track> ranked) => _ranked = ranked;
+
+        public IReadOnlyList<Track> Search(string query, int limit = 500) =>
+            string.IsNullOrWhiteSpace(query) ? Array.Empty<Track>() : _ranked.Take(limit).ToList();
     }
 
     private sealed class StubSearchService : ISearchService

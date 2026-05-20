@@ -17,6 +17,8 @@ internal sealed class TrackEntity
     public long DurationTicks { get; set; }
     public string FilePath { get; set; } = string.Empty;
     public string CoverPath { get; set; } = string.Empty;
+    public int Rating { get; set; }
+    public int Reaction { get; set; } // хранится как int; маппится в TrackReaction-enum в репозитории
     public DateTime AddedAtUtc { get; set; }
     public bool IsBuiltIn { get; set; }
 }

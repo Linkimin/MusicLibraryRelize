@@ -50,6 +50,8 @@ public sealed class SqliteTrackRepository : ITrackRepository
             DurationTicks = track.Duration.Ticks,
             FilePath = track.FilePath,
             CoverPath = track.CoverPath,
+            Rating = track.Rating,
+            Reaction = (int)track.Reaction,
             AddedAtUtc = DateTime.UtcNow,
             IsBuiltIn = track.IsBuiltIn
         };
@@ -75,6 +77,8 @@ public sealed class SqliteTrackRepository : ITrackRepository
         entity.DurationTicks = track.Duration.Ticks;
         entity.FilePath = track.FilePath;
         entity.CoverPath = track.CoverPath;
+        entity.Rating = track.Rating;
+        entity.Reaction = (int)track.Reaction;
         entity.IsBuiltIn = track.IsBuiltIn;
         // AddedAtUtc намеренно не трогаем — это «дата добавления в библиотеку», она не
         // должна обнуляться при обновлении полей.
@@ -108,6 +112,8 @@ public sealed class SqliteTrackRepository : ITrackRepository
         Duration = TimeSpan.FromTicks(e.DurationTicks),
         FilePath = e.FilePath,
         CoverPath = e.CoverPath,
+        Rating = e.Rating,
+        Reaction = (TrackReaction)e.Reaction,
         IsBuiltIn = e.IsBuiltIn
     };
 }

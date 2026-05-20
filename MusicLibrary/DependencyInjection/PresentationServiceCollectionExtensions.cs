@@ -27,17 +27,21 @@ public static class PresentationServiceCollectionExtensions
         // Диалоги и сервисы окон.
         services.AddSingleton<IAddTrackDialogService, AddTrackDialogService>();
         services.AddSingleton<IStatsWindowService, StatsWindowService>();
+        services.AddSingleton<ITagsWindowService, TagsWindowService>();
 
         // ViewModels (transient — каждое окно получает свой инстанс).
         services.AddTransient<MainViewModel>();
         services.AddTransient<AddTrackViewModel>();
         services.AddTransient<StatsViewModel>();
+        services.AddTransient<TagsViewModel>();
 
         // MEDI не умеет автоматически генерировать Func<T> для DI — регистрируем явно.
-        // Каждый вызов factory резолвит свежий transient StatsViewModel из корня
-        // провайдера, поэтому окно статистики всегда видит актуальные данные.
+        // Каждый вызов factory резолвит свежий transient ViewModel из корня
+        // провайдера, поэтому окно всегда видит актуальные данные.
         services.AddSingleton<Func<StatsViewModel>>(sp =>
             () => sp.GetRequiredService<StatsViewModel>());
+        services.AddSingleton<Func<TagsViewModel>>(sp =>
+            () => sp.GetRequiredService<TagsViewModel>());
 
         // Окна.
         services.AddTransient<MainWindow>();

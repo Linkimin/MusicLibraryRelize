@@ -13,6 +13,8 @@
                 <ResourceDictionary Source="Resources/ComboBoxStyles.xaml" />
                 <ResourceDictionary Source="Resources/TextBoxStyles.xaml" />
                 <ResourceDictionary Source="Resources/TabStyles.xaml" />
+                <ResourceDictionary Source="Resources/ToolbarStyles.xaml" />
+                <ResourceDictionary Source="Resources/TagChipStyles.xaml" />
                 <ResourceDictionary Source="Resources/ListStyles.xaml" />
                 <ResourceDictionary Source="Resources/PlayerIcons.xaml" />
                 <ResourceDictionary Source="Resources/TrackTemplates.xaml" />
@@ -27,6 +29,32 @@
                                                    ErrorBrush="{StaticResource ErrorBrush}" />
             <converters:NullToBooleanConverter x:Key="NullToBooleanConverter" />
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+            <converters:RatingThresholdToBrushConverter x:Key="RatingThresholdToBrushConverter"
+                                                       FilledBrush="{StaticResource PrimaryBrush}"
+                                                       EmptyBrush="{StaticResource MutedForegroundBrush}" />
+            <converters:ReactionMatchToBrushConverter x:Key="ReactionMatchToBrushConverter"
+                                                     ActiveBrush="{StaticResource PrimaryBrush}"
+                                                     InactiveBrush="{StaticResource MutedForegroundBrush}" />
+            <!-- Like — красное сердечко. Цвет совпадает с ErrorBrush (#E06C75),
+                 потому что красный нужен только здесь, заводить новый ресурс — оверкилл. -->
+            <converters:ReactionMatchToBrushConverter x:Key="LikeReactionToBrushConverter"
+                                                     ActiveBrush="{StaticResource ErrorBrush}"
+                                                     InactiveBrush="{StaticResource MutedForegroundBrush}" />
+            <!-- Dislike — перечёркнутое сердечко: активное тёмно-серое (как «отвергнуто»),
+                 неактивное приглушённое серое. Активное затемнение — намеренное:
+                 визуально подчёркивает «не нравится». -->
+            <converters:ReactionMatchToBrushConverter x:Key="DislikeReactionToBrushConverter"
+                                                     ActiveBrush="#5C5C70"
+                                                     InactiveBrush="{StaticResource MutedForegroundBrush}" />
+            <converters:ZeroAsActiveBrushConverter x:Key="ZeroAsActiveBrushConverter"
+                                                   ActiveBrush="{StaticResource PrimaryBrush}"
+                                                   InactiveBrush="{StaticResource MutedForegroundBrush}" />
+            <converters:TagsToFirstNConverter x:Key="TagsToFirstNConverter" />
+            <converters:TagsOverflowCountConverter x:Key="TagsOverflowCountConverter" />
+            <converters:TrackTagsLookupConverter x:Key="TrackTagsLookupConverter" />
+            <converters:TrackTagsFirstNMultiConverter x:Key="TrackTagsFirstNMultiConverter" />
+            <converters:TrackTagsOverflowCountMultiConverter x:Key="TrackTagsOverflowCountMultiConverter" />
+            <converters:TrackTagsOverflowVisibilityMultiConverter x:Key="TrackTagsOverflowVisibilityMultiConverter" />
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         </ResourceDictionary>
