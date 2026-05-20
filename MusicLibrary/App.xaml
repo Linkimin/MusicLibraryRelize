@@ -34,6 +34,15 @@
             <converters:ReactionMatchToBrushConverter x:Key="ReactionMatchToBrushConverter"
                                                      ActiveBrush="{StaticResource PrimaryBrush}"
                                                      InactiveBrush="{StaticResource MutedForegroundBrush}" />
+            <!-- Like — красное сердечко. Цвет совпадает с ErrorBrush (#E06C75),
+                 потому что красный нужен только здесь, заводить новый ресурс — оверкилл. -->
+            <converters:ReactionMatchToBrushConverter x:Key="LikeReactionToBrushConverter"
+                                                     ActiveBrush="{StaticResource ErrorBrush}"
+                                                     InactiveBrush="{StaticResource MutedForegroundBrush}" />
+            <!-- Dislike — перечёркнутое сердечко: активное светлое, неактивное приглушённое. -->
+            <converters:ReactionMatchToBrushConverter x:Key="DislikeReactionToBrushConverter"
+                                                     ActiveBrush="{StaticResource ForegroundBrush}"
+                                                     InactiveBrush="{StaticResource MutedForegroundBrush}" />
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         </ResourceDictionary>

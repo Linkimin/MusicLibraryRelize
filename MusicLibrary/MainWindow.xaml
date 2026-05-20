@@ -179,7 +179,8 @@
                                 </Style>
                             </StackPanel.Resources>
 
-                            <!-- 5 звёзд: клик ставит рейтинг N, клик по горящей — сбрасывает. -->
+                            <!-- Один ряд: 5 звёзд + сердечко (лайк) + перечёркнутое сердечко (дизлайк).
+                                 Клик по горящей звезде / активной реакции сбрасывает значение. -->
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetRatingCommand}" CommandParameter="1" ToolTip="1 звезда">
                                     <TextBlock Text="★" FontSize="22"
@@ -201,17 +202,16 @@
                                     <TextBlock Text="★" FontSize="22"
                                                Foreground="{Binding SelectedTrack.Rating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=5}" />
                                 </Button>
-                            </StackPanel>
-
-                            <!-- 👍 / 👎: повторный клик сбрасывает. -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetReactionCommand}" CommandParameter="Liked" ToolTip="Лайк" Margin="0,0,12,0">
-                                    <TextBlock Text="👍" FontSize="18"
-                                               Foreground="{Binding SelectedTrack.Reaction, Converter={StaticResource ReactionMatchToBrushConverter}, ConverterParameter=Liked}" />
+                                <!-- Лайк: сердечко краснеет при активации. -->
+                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetReactionCommand}" CommandParameter="Liked" ToolTip="Лайк" Margin="14,0,0,0">
+                                    <TextBlock Text="♥" FontSize="22"
+                                               Foreground="{Binding SelectedTrack.Reaction, Converter={StaticResource LikeReactionToBrushConverter}, ConverterParameter=Liked}" />
                                 </Button>
-                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetReactionCommand}" CommandParameter="Disliked" ToolTip="Дизлайк">
-                                    <TextBlock Text="👎" FontSize="18"
-                                               Foreground="{Binding SelectedTrack.Reaction, Converter={StaticResource ReactionMatchToBrushConverter}, ConverterParameter=Disliked}" />
+                                <!-- Дизлайк: перечёркнутое сердечко. -->
+                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetReactionCommand}" CommandParameter="Disliked" ToolTip="Дизлайк" Margin="6,0,0,0">
+                                    <TextBlock Text="♥" FontSize="22"
+                                               TextDecorations="Strikethrough"
+                                               Foreground="{Binding SelectedTrack.Reaction, Converter={StaticResource DislikeReactionToBrushConverter}, ConverterParameter=Disliked}" />
                                 </Button>
                             </StackPanel>
                         </StackPanel>

@@ -505,9 +505,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void UpdateSelectedTrack(Track updated)
     {
+        // Капчуем намерение ДО мутации коллекций. Иначе после
+        // DisplayedTracks[i] = updated ListBox увидит Remove+Add, не найдёт
+        // старый объект SelectedItem в коллекции и сбросит SelectedTrack в null
+        // через TwoWay-биндинг — после этого мы уже не сможем понять, нужно ли
+        // восстанавливать выделение.
+        bool wasSelected = SelectedTrack?.Id == updated.Id;
+        bool wasPlaying = PlayingTrack?.Id == updated.Id;
+
         _trackRepository.Update(updated);
-        // Синхронизация in-memory копии: меняем элемент в _allTracks, DisplayedTracks
-        // и обновляем SelectedTrack/PlayingTrack, если речь о них.
+
         int allIndex = _allTracks.FindIndex(t => t.Id == updated.Id);
         if (allIndex >= 0) _allTracks[allIndex] = updated;
 
@@ -518,8 +525,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         if (displayedIndex >= 0) DisplayedTracks[displayedIndex] = updated;
 
-        if (SelectedTrack?.Id == updated.Id) SelectedTrack = updated;
-        if (PlayingTrack?.Id == updated.Id) PlayingTrack = updated;
+        if (wasSelected) SelectedTrack = updated;
+        if (wasPlaying) PlayingTrack = updated;
     }
 
     private static bool TryParseInt(object? parameter, out int value)
