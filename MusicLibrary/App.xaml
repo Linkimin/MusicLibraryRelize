@@ -28,6 +28,12 @@
                                                    ErrorBrush="{StaticResource ErrorBrush}" />
             <converters:NullToBooleanConverter x:Key="NullToBooleanConverter" />
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+            <converters:RatingThresholdToBrushConverter x:Key="RatingThresholdToBrushConverter"
+                                                       FilledBrush="{StaticResource PrimaryBrush}"
+                                                       EmptyBrush="{StaticResource MutedForegroundBrush}" />
+            <converters:ReactionMatchToBrushConverter x:Key="ReactionMatchToBrushConverter"
+                                                     ActiveBrush="{StaticResource PrimaryBrush}"
+                                                     InactiveBrush="{StaticResource MutedForegroundBrush}" />
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         </ResourceDictionary>

@@ -114,6 +114,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         OpenTagsCommand = new RelayCommand(
             _ => _tagsWindowService?.Show(),
             _ => _tagsWindowService is not null);
+        // Рейтинг и реакция — пользовательская оценка, разрешена и для встроенных
+        // треков (UI ограничивает только удаление seed-треков, не их оценку).
+        SetRatingCommand = new RelayCommand(
+            parameter => SetRatingOnSelected(parameter),
+            _ => SelectedTrack is not null);
+        SetReactionCommand = new RelayCommand(
+            parameter => SetReactionOnSelected(parameter),
+            _ => SelectedTrack is not null);
 
         SkipForwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(10)), _ => PlayingTrack is not null);
         SkipBackwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(-10)), _ => PlayingTrack is not null);
@@ -144,6 +152,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand ReplayHistoryEntryCommand { get; }
     public ICommand OpenStatsCommand { get; }
     public ICommand OpenTagsCommand { get; }
+    public ICommand SetRatingCommand { get; }
+    public ICommand SetReactionCommand { get; }
     public ICommand SkipForwardCommand { get; }
     public ICommand SkipBackwardCommand { get; }
     public ICommand PreviousTrackCommand { get; }
@@ -451,6 +461,78 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             SelectedTrack = null;
         }
+    }
+
+    private void SetRatingOnSelected(object? parameter)
+    {
+        if (SelectedTrack is null) return;
+        if (!TryParseInt(parameter, out int requested)) return;
+        // Toggle: повторный клик по той же звезде сбрасывает рейтинг в 0.
+        int next = SelectedTrack.Rating == requested ? 0 : Math.Clamp(requested, 0, 5);
+        UpdateSelectedTrack(CloneTrack(SelectedTrack, rating: next));
+    }
+
+    private void SetReactionOnSelected(object? parameter)
+    {
+        if (SelectedTrack is null) return;
+        TrackReaction requested = parameter switch
+        {
+            TrackReaction r => r,
+            string s when Enum.TryParse<TrackReaction>(s, ignoreCase: true, out var parsed) => parsed,
+            _ => TrackReaction.None
+        };
+        // Toggle: повторный клик по уже активной реакции сбрасывает в None.
+        TrackReaction next = SelectedTrack.Reaction == requested ? TrackReaction.None : requested;
+        UpdateSelectedTrack(CloneTrack(SelectedTrack, reaction: next));
+    }
+
+    // Track — sealed class с init-only свойствами, `with` для него не работает,
+    // поэтому копируем вручную. Если в будущем Track станет record — можно убрать.
+    private static Track CloneTrack(Track source, int? rating = null, TrackReaction? reaction = null) => new()
+    {
+        Id = source.Id,
+        Title = source.Title,
+        Artist = source.Artist,
+        Album = source.Album,
+        Genre = source.Genre,
+        Duration = source.Duration,
+        FilePath = source.FilePath,
+        CoverPath = source.CoverPath,
+        Rating = rating ?? source.Rating,
+        Reaction = reaction ?? source.Reaction,
+        IsBuiltIn = source.IsBuiltIn
+    };
+
+    private void UpdateSelectedTrack(Track updated)
+    {
+        _trackRepository.Update(updated);
+        // Синхронизация in-memory копии: меняем элемент в _allTracks, DisplayedTracks
+        // и обновляем SelectedTrack/PlayingTrack, если речь о них.
+        int allIndex = _allTracks.FindIndex(t => t.Id == updated.Id);
+        if (allIndex >= 0) _allTracks[allIndex] = updated;
+
+        int displayedIndex = -1;
+        for (int i = 0; i < DisplayedTracks.Count; i++)
+        {
+            if (DisplayedTracks[i].Id == updated.Id) { displayedIndex = i; break; }
+        }
+        if (displayedIndex >= 0) DisplayedTracks[displayedIndex] = updated;
+
+        if (SelectedTrack?.Id == updated.Id) SelectedTrack = updated;
+        if (PlayingTrack?.Id == updated.Id) PlayingTrack = updated;
+    }
+
+    private static bool TryParseInt(object? parameter, out int value)
+    {
+        if (parameter is int i) { value = i; return true; }
+        if (parameter is string s &&
+            int.TryParse(s, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out value))
+        {
+            return true;
+        }
+        value = 0;
+        return false;
     }
 
     public void AddTrack(Track track)

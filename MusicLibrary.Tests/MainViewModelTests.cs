@@ -30,6 +30,51 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void SetRatingCommand_Updates_Selected_Track_And_Repository()
+    {
+        var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3" } };
+        var trackRepo = new RecordingTrackRepository(tracks);
+        var viewModel = CreateViewModelWithRepo(trackRepo);
+        viewModel.SelectedTrack = viewModel.DisplayedTracks[0];
+
+        viewModel.SetRatingCommand.Execute("4");
+
+        Assert.Equal(4, viewModel.SelectedTrack!.Rating);
+        Assert.Equal(4, viewModel.DisplayedTracks[0].Rating);
+        Assert.Single(trackRepo.UpdateCalls);
+        Assert.Equal(4, trackRepo.UpdateCalls[0].Rating);
+    }
+
+    [Fact]
+    public void SetRatingCommand_Toggle_Same_Star_Resets_To_Zero()
+    {
+        var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3", Rating = 3 } };
+        var viewModel = CreateViewModelWithRepo(new RecordingTrackRepository(tracks));
+        viewModel.SelectedTrack = viewModel.DisplayedTracks[0];
+
+        viewModel.SetRatingCommand.Execute("3");
+
+        Assert.Equal(0, viewModel.SelectedTrack!.Rating);
+    }
+
+    [Fact]
+    public void SetReactionCommand_Toggles_Off_When_Same_Reaction_Clicked_Twice()
+    {
+        var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3" } };
+        var trackRepo = new RecordingTrackRepository(tracks);
+        var viewModel = CreateViewModelWithRepo(trackRepo);
+        viewModel.SelectedTrack = viewModel.DisplayedTracks[0];
+
+        viewModel.SetReactionCommand.Execute("Liked");
+        Assert.Equal(TrackReaction.Liked, viewModel.SelectedTrack!.Reaction);
+
+        viewModel.SetReactionCommand.Execute("Liked");
+        Assert.Equal(TrackReaction.None, viewModel.SelectedTrack!.Reaction);
+
+        Assert.Equal(2, trackRepo.UpdateCalls.Count);
+    }
+
+    [Fact]
     public void SearchText_Preserves_SearchService_Order()
     {
         // ISearchService возвращает треки в порядке релевантности (bm25). UI обязан
@@ -806,6 +851,38 @@ public sealed class MainViewModelTests
             repo,
             addTrackDialogService: null,
             confirmationService: null);
+    }
+
+    private static MainViewModel CreateViewModelWithRepo(RecordingTrackRepository repo)
+    {
+        return new MainViewModel(
+            repo,
+            new FakeFileService(),
+            new FakeSaveFileDialogService(),
+            new FakeAudioPlayerService(),
+            new FakeListeningHistoryRepository(),
+            new FakePlayerSettingsRepository(),
+            addTrackDialogService: null,
+            confirmationService: null);
+    }
+
+    private sealed class RecordingTrackRepository : ITrackRepository
+    {
+        private readonly List<Track> _tracks;
+        public List<Track> UpdateCalls { get; } = new();
+
+        public RecordingTrackRepository(IEnumerable<Track> seed) => _tracks = seed.ToList();
+
+        public IReadOnlyList<Track> GetAll() => _tracks;
+        public Track? FindById(int id) => _tracks.FirstOrDefault(t => t.Id == id);
+        public Track Add(Track track) { _tracks.Add(track); return track; }
+        public void Update(Track track)
+        {
+            int i = _tracks.FindIndex(t => t.Id == track.Id);
+            if (i >= 0) _tracks[i] = track;
+            UpdateCalls.Add(track);
+        }
+        public void Remove(int id) => _tracks.RemoveAll(t => t.Id == id);
     }
 
     private static MainViewModel CreateViewModelWithSearch(
