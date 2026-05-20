@@ -24,12 +24,8 @@ public sealed class SqliteTagRepositoryTests
     }
 
     [Fact]
-    public void Add_Rejects_Duplicate_Name_CaseInsensitive_For_Ascii()
+    public void Add_Rejects_Duplicate_Name_CaseInsensitive_Ascii()
     {
-        // ВАЖНО: SQLite COLLATE NOCASE — ASCII-only. Для латиницы работает,
-        // для кириллицы «утро» и «Утро» считаются разными. Полная case-
-        // insensitive нормализация для кириллицы потребует ICU-расширения и
-        // отнесена в backlog 1.0.4+.
         using var factory = new MigratedSqliteDbContextFactory();
         var repo = new SqliteTagRepository(factory.CreateContext);
         repo.Add(new Tag { Name = "Sport" });
@@ -39,20 +35,46 @@ public sealed class SqliteTagRepositoryTests
     }
 
     [Fact]
-    public void Add_Allows_Duplicate_Cyrillic_Names_Due_To_Sqlite_Limitation()
+    public void Add_Rejects_Duplicate_Name_CaseInsensitive_Cyrillic()
     {
-        // Документирующий тест: фиксирует факт известного ограничения, чтобы
-        // регрессия (например, переезд на ICU collation) была заметна — этот
-        // тест начнёт падать, а мы поймём что фичу подняли и пора снять
-        // ограничение в comments/docs.
+        // SQLite COLLATE NOCASE — ASCII-only, поэтому валидация делается в коде
+        // через string.Equals(StringComparison.OrdinalIgnoreCase). Это закрывает
+        // UX-баг «создал «Любимое» и тут же «ЛЮБИМОЕ» как отдельный тег».
         using var factory = new MigratedSqliteDbContextFactory();
         var repo = new SqliteTagRepository(factory.CreateContext);
-        repo.Add(new Tag { Name = "утро" });
+        repo.Add(new Tag { Name = "Любимое" });
 
-        // НЕ throws: ICU не включён → кириллический case-fold не работает.
+        var ex = Assert.Throws<InvalidOperationException>(() => repo.Add(new Tag { Name = "ЛЮБИМОЕ" }));
+        Assert.Contains("уже существует", ex.Message);
+    }
+
+    [Fact]
+    public void Update_Rejects_Renaming_To_Existing_Other_Tag()
+    {
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTagRepository(factory.CreateContext);
         repo.Add(new Tag { Name = "Утро" });
+        var sport = repo.Add(new Tag { Name = "Спорт" });
 
-        Assert.Equal(2, repo.GetAll().Count);
+        // Переименовать «Спорт» в «утро» (case-insensitive дубль другого тега) — отбой.
+        Assert.Throws<InvalidOperationException>(() =>
+            repo.Update(new Tag { Id = sport.Id, Name = "утро", Color = null }));
+    }
+
+    [Fact]
+    public void Update_Allows_Renaming_To_Same_Name_With_Different_Case()
+    {
+        // Переименование тега «Спорт» → «СПОРТ» (по сути — изменение регистра
+        // самого себя) НЕ должно отбиваться валидацией: проверка исключает
+        // обновляемый тег по Id.
+        using var factory = new MigratedSqliteDbContextFactory();
+        var repo = new SqliteTagRepository(factory.CreateContext);
+        var sport = repo.Add(new Tag { Name = "Спорт" });
+
+        repo.Update(new Tag { Id = sport.Id, Name = "СПОРТ", Color = null });
+
+        var found = repo.FindById(sport.Id);
+        Assert.Equal("СПОРТ", found!.Name);
     }
 
     [Fact]

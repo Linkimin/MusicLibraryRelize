@@ -36,7 +36,19 @@ public sealed class SqliteTagRepository : ITagRepository
     public Tag Add(Tag tag)
     {
         using var ctx = _contextFactory();
-        var entity = new TagEntity { Name = tag.Name.Trim(), Color = tag.Color };
+        var normalized = tag.Name.Trim();
+
+        // Уникальность имени проверяем в коде через StringComparison.OrdinalIgnoreCase,
+        // потому что SQLite COLLATE NOCASE — ASCII-only и пропустил бы «Любимое» vs
+        // «ЛЮБИМОЕ» как разные. .NET-овский OrdinalIgnoreCase корректно работает на
+        // Unicode. SQLite-индекс COLLATE NOCASE остаётся как defence-in-depth для
+        // одновременных вставок ASCII-дублей.
+        if (ctx.Tags.AsEnumerable().Any(t => string.Equals(t.Name, normalized, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"Тег с именем «{tag.Name}» уже существует.");
+        }
+
+        var entity = new TagEntity { Name = normalized, Color = tag.Color };
         ctx.Tags.Add(entity);
         try
         {
@@ -44,7 +56,7 @@ public sealed class SqliteTagRepository : ITagRepository
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqliteException sx && sx.SqliteErrorCode == 19)
         {
-            // 19 = SQLITE_CONSTRAINT (включает UNIQUE-нарушение).
+            // Гонка: проверка прошла, но второй поток успел вставить тот же ASCII-дубль.
             throw new InvalidOperationException($"Тег с именем «{tag.Name}» уже существует.", ex);
         }
 
@@ -59,7 +71,17 @@ public sealed class SqliteTagRepository : ITagRepository
         {
             return;
         }
-        entity.Name = tag.Name.Trim();
+
+        var normalized = tag.Name.Trim();
+
+        // Та же логика, что в Add, но исключаем сам обновляемый тег по Id.
+        if (ctx.Tags.AsEnumerable().Any(t => t.Id != tag.Id &&
+                                              string.Equals(t.Name, normalized, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"Тег с именем «{tag.Name}» уже существует.");
+        }
+
+        entity.Name = normalized;
         entity.Color = tag.Color;
         try
         {
