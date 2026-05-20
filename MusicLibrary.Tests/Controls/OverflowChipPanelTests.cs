@@ -61,13 +61,17 @@ public sealed class OverflowChipPanelTests
     [Fact]
     public void Some_Chips_Hidden_More_Pill_Visible_HiddenCount_Correct()
     {
-        // Чипы по 60, More по 80. Доступно 200 px.
-        // Чтобы все 3 чипа влезли с More: 60*3+80=260 > 200. Скрываем последние,
-        // оставляя место под More-пилюлю: 60 + 80 = 140 <= 200 — оставляем только chip 0.
+        // Чипы по 60, More по 80. Доступно 140 px.
+        // Грузим жадно: chip[0] 60px влезает, chip[1] 60px уже не влезает (60+60=120 <= 140, но читай ниже).
+        // На самом деле chip[1]: 60+60=120 <= 140, то есть влезает.
+        // Chip[2]: 120+60=180 > 140, не влезает. После жадной загрузки: lastVisibleChip=1, hiddenCount=1.
+        // Так как hiddenCount > 0, резервируем место под More: 120+80=200 > 140.
+        // Убираем chip[1]: used=60, lastVisibleChip=0, hiddenCount=2. Проверка: 60+80=140 <= 140. Стоп.
+        // Результат: видна только chip[0], chip[1,2] скрыта, More видна, hiddenCount=2.
         RunInSta(() =>
         {
             var panel = BuildPanel(60, 60, 60);
-            DoLayout(panel, availableWidth: 200);
+            DoLayout(panel, availableWidth: 140);
 
             Assert.Equal(Visibility.Visible, panel.Children[0].Visibility);
             Assert.Equal(Visibility.Collapsed, panel.Children[1].Visibility);

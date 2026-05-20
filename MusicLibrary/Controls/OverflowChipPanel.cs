@@ -69,25 +69,10 @@ public sealed class OverflowChipPanel : Panel
         }
 
         int hiddenCount = numChips - (lastVisibleChip + 1);
-        double remainingSpace = availableWidth - used;
 
-        // Check if we need to show the More pill:
-        // 1. If chips don't all fit (hiddenCount > 0), definitely show More.
-        // 2. If all chips fit but there's leftover space that's less than More pill width,
-        //    hide chips to make room for More (to signal overflow).
-        if (hiddenCount == 0 && remainingSpace > 0 && remainingSpace < morePillWidth)
-        {
-            // All chips fit, but not enough room for More pill.
-            // Hide chips from right until there's room for More.
-            while (lastVisibleChip >= 0 && used + morePillWidth >= availableWidth)
-            {
-                used -= InternalChildren[lastVisibleChip].DesiredSize.Width;
-                lastVisibleChip--;
-            }
-            hiddenCount = numChips - (lastVisibleChip + 1);
-        }
-        // If chips were already hidden, ensure More pill fits.
-        else if (hiddenCount > 0)
+        // If any chips were hidden, reserve space for the More pill — possibly
+        // hiding more chips from the right until the More pill fits too.
+        if (hiddenCount > 0)
         {
             while (lastVisibleChip >= 0 && used + morePillWidth > availableWidth)
             {
