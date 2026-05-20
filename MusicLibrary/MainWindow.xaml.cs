@@ -146,7 +146,26 @@ public partial class MainWindow : Window
 
     private void OnMoreTagsClick(object sender, RoutedEventArgs e)
     {
-        // Task 6 fills in the popup logic.
+        // Собираем список скрытых тегов: дети TagChipsPanel с Visibility=Collapsed
+        // (кроме последнего — это сам More-пилюля). Порядок Children совпадает
+        // с порядком VM.TagFilters, потому что RebuildTagChips сохраняет его.
+        var hidden = new System.Collections.Generic.List<MusicLibrary.ViewModels.TagFilterItem>();
+        int childCount = TagChipsPanel.Children.Count;
+        for (int i = 0; i < childCount - 1; i++) // -1: пропускаем More-пилюлю
+        {
+            if (TagChipsPanel.Children[i].Visibility == Visibility.Collapsed
+                && i < _viewModel.TagFilters.Count)
+            {
+                hidden.Add(_viewModel.TagFilters[i]);
+            }
+        }
+
+        // DataContext явно выставляем в MainViewModel, т.к. Popup живёт в отдельном
+        // визуальном дереве и не наследует DataContext от MainWindow.
+        HiddenTagsList.DataContext = _viewModel;
+        HiddenTagsList.ItemTemplate = (DataTemplate)FindResource("HiddenTagChipTemplate");
+        HiddenTagsList.ItemsSource = hidden;
+        MoreTagsPopup.IsOpen = true;
     }
 
     private void OnMoreFiltersClick(object sender, RoutedEventArgs e)

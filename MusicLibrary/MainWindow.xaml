@@ -94,6 +94,35 @@
                         Click="OnMoreFiltersClick"
                         ToolTip="Рейтинг, реакция, сброс" />
 
+                <Popup x:Name="MoreTagsPopup"
+                       PlacementTarget="{Binding ElementName=TagChipsPanel}"
+                       Placement="Bottom"
+                       AllowsTransparency="True"
+                       StaysOpen="False"
+                       PopupAnimation="Fade">
+                    <Border Style="{StaticResource ToolbarPopupBorderStyle}" MinWidth="220" MaxWidth="320">
+                        <StackPanel>
+                            <TextBlock Text="Скрытые теги"
+                                       Foreground="{StaticResource MutedForegroundBrush}"
+                                       FontSize="12"
+                                       Margin="0,0,0,8" />
+                            <!-- ItemTemplate и ItemsSource выставляются в code-behind после
+                                 формирования списка скрытых чипов; DataContext = MainViewModel. -->
+                            <ItemsControl x:Name="HiddenTagsList">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                            <Button Style="{StaticResource PopupResetButtonStyle}"
+                                    Content="Обновить список"
+                                    Command="{Binding RefreshTagFiltersCommand}"
+                                    Margin="0,12,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Popup>
+
                 <Popup x:Name="MoreFiltersPopup"
                        PlacementTarget="{Binding ElementName=MoreFiltersButton}"
                        Placement="Bottom"
