@@ -46,6 +46,9 @@
             <converters:ReactionMatchToBrushConverter x:Key="DislikeReactionToBrushConverter"
                                                      ActiveBrush="#5C5C70"
                                                      InactiveBrush="{StaticResource MutedForegroundBrush}" />
+            <converters:ZeroAsActiveBrushConverter x:Key="ZeroAsActiveBrushConverter"
+                                                   ActiveBrush="{StaticResource PrimaryBrush}"
+                                                   InactiveBrush="{StaticResource MutedForegroundBrush}" />
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         </ResourceDictionary>

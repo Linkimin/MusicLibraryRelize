@@ -93,6 +93,83 @@
                         Content="⋮"
                         Click="OnMoreFiltersClick"
                         ToolTip="Рейтинг, реакция, сброс" />
+
+                <Popup x:Name="MoreFiltersPopup"
+                       PlacementTarget="{Binding ElementName=MoreFiltersButton}"
+                       Placement="Bottom"
+                       AllowsTransparency="True"
+                       StaysOpen="False"
+                       PopupAnimation="Fade">
+                    <Border Style="{StaticResource ToolbarPopupBorderStyle}" Width="280">
+                        <StackPanel>
+                            <TextBlock Text="Минимальный рейтинг"
+                                       Foreground="{StaticResource MutedForegroundBrush}"
+                                       FontSize="12"
+                                       Margin="0,0,0,6" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                <Button Style="{StaticResource PopupPillButtonStyle}"
+                                        Content="Все"
+                                        Command="{Binding SetMinRatingCommand}"
+                                        CommandParameter="0"
+                                        Margin="0,0,8,0">
+                                    <Button.Foreground>
+                                        <Binding Path="MinRating" Converter="{StaticResource ZeroAsActiveBrushConverter}" />
+                                    </Button.Foreground>
+                                </Button>
+                                <Button Command="{Binding SetMinRatingCommand}" CommandParameter="1" Style="{StaticResource ToolbarIconButtonStyle}" Width="32" Height="32" Margin="0,0,2,0">
+                                    <TextBlock Text="★" FontSize="22" Foreground="{Binding MinRating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=1}" />
+                                </Button>
+                                <Button Command="{Binding SetMinRatingCommand}" CommandParameter="2" Style="{StaticResource ToolbarIconButtonStyle}" Width="32" Height="32" Margin="0,0,2,0">
+                                    <TextBlock Text="★" FontSize="22" Foreground="{Binding MinRating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=2}" />
+                                </Button>
+                                <Button Command="{Binding SetMinRatingCommand}" CommandParameter="3" Style="{StaticResource ToolbarIconButtonStyle}" Width="32" Height="32" Margin="0,0,2,0">
+                                    <TextBlock Text="★" FontSize="22" Foreground="{Binding MinRating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=3}" />
+                                </Button>
+                                <Button Command="{Binding SetMinRatingCommand}" CommandParameter="4" Style="{StaticResource ToolbarIconButtonStyle}" Width="32" Height="32" Margin="0,0,2,0">
+                                    <TextBlock Text="★" FontSize="22" Foreground="{Binding MinRating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=4}" />
+                                </Button>
+                                <Button Command="{Binding SetMinRatingCommand}" CommandParameter="5" Style="{StaticResource ToolbarIconButtonStyle}" Width="32" Height="32">
+                                    <TextBlock Text="★" FontSize="22" Foreground="{Binding MinRating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=5}" />
+                                </Button>
+                            </StackPanel>
+
+                            <TextBlock Text="Реакция"
+                                       Foreground="{StaticResource MutedForegroundBrush}"
+                                       FontSize="12"
+                                       Margin="0,0,0,6" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                <Button Style="{StaticResource PopupPillButtonStyle}"
+                                        Content="Все"
+                                        Command="{Binding SetReactionFilterCommand}"
+                                        CommandParameter="Any"
+                                        Margin="0,0,8,0">
+                                    <Button.Foreground>
+                                        <Binding Path="ReactionFilter" Converter="{StaticResource ReactionMatchToBrushConverter}" ConverterParameter="Any" />
+                                    </Button.Foreground>
+                                </Button>
+                                <Button Command="{Binding SetReactionFilterCommand}" CommandParameter="Liked"
+                                        Style="{StaticResource ToolbarIconButtonStyle}" Width="40" Height="36" Margin="0,0,6,0">
+                                    <TextBlock Text="♥" FontSize="18"
+                                               Foreground="{Binding ReactionFilter, Converter={StaticResource LikeReactionToBrushConverter}, ConverterParameter=Liked}" />
+                                </Button>
+                                <Button Command="{Binding SetReactionFilterCommand}" CommandParameter="Disliked"
+                                        Style="{StaticResource ToolbarIconButtonStyle}" Width="40" Height="36">
+                                    <Grid Width="22" Height="22">
+                                        <TextBlock Text="♥" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{Binding ReactionFilter, Converter={StaticResource DislikeReactionToBrushConverter}, ConverterParameter=Disliked}" />
+                                        <Line X1="2" Y1="20" X2="20" Y2="2" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                              Stroke="{Binding ReactionFilter, Converter={StaticResource DislikeReactionToBrushConverter}, ConverterParameter=Disliked}" />
+                                    </Grid>
+                                </Button>
+                            </StackPanel>
+
+                            <Button Style="{StaticResource PopupResetButtonStyle}"
+                                    Content="Сбросить все фильтры"
+                                    Command="{Binding ClearFiltersCommand}"
+                                    Click="OnResetFiltersClick" />
+                        </StackPanel>
+                    </Border>
+                </Popup>
             </Grid>
         </Border>
 

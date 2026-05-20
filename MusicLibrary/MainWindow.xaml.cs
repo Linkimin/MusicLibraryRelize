@@ -151,7 +151,13 @@ public partial class MainWindow : Window
 
     private void OnMoreFiltersClick(object sender, RoutedEventArgs e)
     {
-        // Task 5 fills in the popup logic.
+        MoreFiltersPopup.IsOpen = !MoreFiltersPopup.IsOpen;
+    }
+
+    private void OnResetFiltersClick(object sender, RoutedEventArgs e)
+    {
+        // ClearFiltersCommand уже отработал через Binding.Command; здесь только закрываем popup.
+        MoreFiltersPopup.IsOpen = false;
     }
 
     private void OnSeekDragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)

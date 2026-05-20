@@ -128,6 +128,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RefreshTagFiltersCommand = new RelayCommand(_ => LoadTagFilters());
         ClearFiltersCommand = new RelayCommand(_ => ClearFilters());
         SetReactionFilterCommand = new RelayCommand(parameter => SetReactionFilter(parameter));
+        SetMinRatingCommand = new RelayCommand(parameter =>
+        {
+            if (!TryParseInt(parameter, out int requested)) return;
+            // Toggle: клик по уже активной звезде → 0 («Все»).
+            // Сравниваем по зажатому значению: Execute("9") дважды = 5 → 0.
+            int clamped = Math.Clamp(requested, 0, 5);
+            MinRating = MinRating == clamped ? 0 : clamped;
+        });
 
         SkipForwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(10)), _ => PlayingTrack is not null);
         SkipBackwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(-10)), _ => PlayingTrack is not null);
@@ -164,6 +172,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand RefreshTagFiltersCommand { get; }
     public ICommand ClearFiltersCommand { get; }
     public ICommand SetReactionFilterCommand { get; }
+    public ICommand SetMinRatingCommand { get; }
 
     /// <summary>Чипы тегов для левой колонки. Обновляются вручную через RefreshTagFiltersCommand.</summary>
     public ObservableCollection<TagFilterItem> TagFilters => _tagFilters;

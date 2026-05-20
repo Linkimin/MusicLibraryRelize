@@ -102,6 +102,32 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void SetMinRatingCommand_Toggle_Same_Value_Resets_To_Zero()
+    {
+        var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3" } };
+        var viewModel = CreateViewModelWithRepo(new RecordingTrackRepository(tracks));
+
+        viewModel.SetMinRatingCommand.Execute("4");
+        Assert.Equal(4, viewModel.MinRating);
+
+        viewModel.SetMinRatingCommand.Execute("4");
+        Assert.Equal(0, viewModel.MinRating);
+    }
+
+    [Fact]
+    public void SetMinRatingCommand_Clamps_Out_Of_Range_To_0_5()
+    {
+        var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3" } };
+        var viewModel = CreateViewModelWithRepo(new RecordingTrackRepository(tracks));
+
+        viewModel.SetMinRatingCommand.Execute("9");
+        Assert.Equal(5, viewModel.MinRating); // clamp вверх
+
+        viewModel.SetMinRatingCommand.Execute("9"); // тот же → сбрасывает в 0 (toggle логика)
+        Assert.Equal(0, viewModel.MinRating);
+    }
+
+    [Fact]
     public void SetReactionCommand_Toggles_Off_When_Same_Reaction_Clicked_Twice()
     {
         var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3" } };
