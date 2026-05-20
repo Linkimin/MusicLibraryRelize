@@ -35,8 +35,9 @@ public partial class MainWindow : Window
     {
         // Ctrl+F: фокус и выделение текста в строке поиска. Это чисто UI-операция
         // над конкретным TextBox, поэтому живёт в code-behind, а не в команде VM.
-        SearchBox.Focus();
-        SearchBox.SelectAll();
+        // TODO Task 4: Restore after toolbar lands
+        // SearchBox.Focus();
+        // SearchBox.SelectAll();
         e.Handled = true;
     }
 
@@ -46,7 +47,8 @@ public partial class MainWindow : Window
         {
             // Эскейп — очистить и снять фокус. ViewModel получит пустой SearchText
             // через биндинг и вернётся к полной библиотеке.
-            SearchBox.Clear();
+            // TODO Task 4: Restore after toolbar lands
+            // SearchBox.Clear();
             Keyboard.ClearFocus();
             e.Handled = true;
         }
