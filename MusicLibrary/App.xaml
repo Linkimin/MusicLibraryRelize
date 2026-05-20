@@ -39,9 +39,11 @@
             <converters:ReactionMatchToBrushConverter x:Key="LikeReactionToBrushConverter"
                                                      ActiveBrush="{StaticResource ErrorBrush}"
                                                      InactiveBrush="{StaticResource MutedForegroundBrush}" />
-            <!-- Dislike — перечёркнутое сердечко: активное светлое, неактивное приглушённое. -->
+            <!-- Dislike — перечёркнутое сердечко: активное тёмно-серое (как «отвергнуто»),
+                 неактивное приглушённое серое. Активное затемнение — намеренное:
+                 визуально подчёркивает «не нравится». -->
             <converters:ReactionMatchToBrushConverter x:Key="DislikeReactionToBrushConverter"
-                                                     ActiveBrush="{StaticResource ForegroundBrush}"
+                                                     ActiveBrush="#5C5C70"
                                                      InactiveBrush="{StaticResource MutedForegroundBrush}" />
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />

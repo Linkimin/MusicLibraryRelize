@@ -180,38 +180,47 @@
                             </StackPanel.Resources>
 
                             <!-- Один ряд: 5 звёзд + сердечко (лайк) + перечёркнутое сердечко (дизлайк).
-                                 Клик по горящей звезде / активной реакции сбрасывает значение. -->
+                                 Клик по горящей звезде / активной реакции сбрасывает значение.
+                                 Размер крупный (≥32 px) для удобного попадания мышью / пальцем. -->
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetRatingCommand}" CommandParameter="1" ToolTip="1 звезда">
-                                    <TextBlock Text="★" FontSize="22"
+                                <Button Style="{StaticResource GlyphButtonStyle}" Padding="4" Command="{Binding SetRatingCommand}" CommandParameter="1" ToolTip="1 звезда">
+                                    <TextBlock Text="★" FontSize="32"
                                                Foreground="{Binding SelectedTrack.Rating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=1}" />
                                 </Button>
-                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetRatingCommand}" CommandParameter="2" ToolTip="2 звезды">
-                                    <TextBlock Text="★" FontSize="22"
+                                <Button Style="{StaticResource GlyphButtonStyle}" Padding="4" Command="{Binding SetRatingCommand}" CommandParameter="2" ToolTip="2 звезды">
+                                    <TextBlock Text="★" FontSize="32"
                                                Foreground="{Binding SelectedTrack.Rating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=2}" />
                                 </Button>
-                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetRatingCommand}" CommandParameter="3" ToolTip="3 звезды">
-                                    <TextBlock Text="★" FontSize="22"
+                                <Button Style="{StaticResource GlyphButtonStyle}" Padding="4" Command="{Binding SetRatingCommand}" CommandParameter="3" ToolTip="3 звезды">
+                                    <TextBlock Text="★" FontSize="32"
                                                Foreground="{Binding SelectedTrack.Rating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=3}" />
                                 </Button>
-                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetRatingCommand}" CommandParameter="4" ToolTip="4 звезды">
-                                    <TextBlock Text="★" FontSize="22"
+                                <Button Style="{StaticResource GlyphButtonStyle}" Padding="4" Command="{Binding SetRatingCommand}" CommandParameter="4" ToolTip="4 звезды">
+                                    <TextBlock Text="★" FontSize="32"
                                                Foreground="{Binding SelectedTrack.Rating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=4}" />
                                 </Button>
-                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetRatingCommand}" CommandParameter="5" ToolTip="5 звёзд">
-                                    <TextBlock Text="★" FontSize="22"
+                                <Button Style="{StaticResource GlyphButtonStyle}" Padding="4" Command="{Binding SetRatingCommand}" CommandParameter="5" ToolTip="5 звёзд">
+                                    <TextBlock Text="★" FontSize="32"
                                                Foreground="{Binding SelectedTrack.Rating, Converter={StaticResource RatingThresholdToBrushConverter}, ConverterParameter=5}" />
                                 </Button>
                                 <!-- Лайк: сердечко краснеет при активации. -->
-                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetReactionCommand}" CommandParameter="Liked" ToolTip="Лайк" Margin="14,0,0,0">
-                                    <TextBlock Text="♥" FontSize="22"
+                                <Button Style="{StaticResource GlyphButtonStyle}" Padding="4" Command="{Binding SetReactionCommand}" CommandParameter="Liked" ToolTip="Лайк" Margin="16,0,0,0">
+                                    <TextBlock Text="♥" FontSize="32"
                                                Foreground="{Binding SelectedTrack.Reaction, Converter={StaticResource LikeReactionToBrushConverter}, ConverterParameter=Liked}" />
                                 </Button>
-                                <!-- Дизлайк: перечёркнутое сердечко. -->
-                                <Button Style="{StaticResource GlyphButtonStyle}" Command="{Binding SetReactionCommand}" CommandParameter="Disliked" ToolTip="Дизлайк" Margin="6,0,0,0">
-                                    <TextBlock Text="♥" FontSize="22"
-                                               TextDecorations="Strikethrough"
-                                               Foreground="{Binding SelectedTrack.Reaction, Converter={StaticResource DislikeReactionToBrushConverter}, ConverterParameter=Disliked}" />
+                                <!-- Дизлайк: сердечко + диагональная линия через Grid-overlay.
+                                     Цвет линии и сердечка синхронизированы через общий конвертер. -->
+                                <Button Style="{StaticResource GlyphButtonStyle}" Padding="4" Command="{Binding SetReactionCommand}" CommandParameter="Disliked" ToolTip="Дизлайк" Margin="6,0,0,0">
+                                    <Grid Width="32" Height="38">
+                                        <TextBlock Text="♥" FontSize="32"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{Binding SelectedTrack.Reaction, Converter={StaticResource DislikeReactionToBrushConverter}, ConverterParameter=Disliked}" />
+                                        <!-- Диагональная линия слева-снизу к справа-сверху, чуть с запасом за границы глифа. -->
+                                        <Line X1="2" Y1="34" X2="30" Y2="4"
+                                              StrokeThickness="2.5"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                              Stroke="{Binding SelectedTrack.Reaction, Converter={StaticResource DislikeReactionToBrushConverter}, ConverterParameter=Disliked}" />
+                                    </Grid>
                                 </Button>
                             </StackPanel>
                         </StackPanel>
