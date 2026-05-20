@@ -59,6 +59,8 @@ public partial class MainWindow : Window
         base.OnContentRendered(e);
         HookTagFiltersSync();
         RebuildTagChips();
+        // Подписка на PropertyChanged VM: обновляем список в открытом popup тегов.
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     private void HookTagFiltersSync()
@@ -171,6 +173,29 @@ public partial class MainWindow : Window
         HiddenTagsList.ItemTemplate = (DataTemplate)FindResource("HiddenTagChipTemplate");
         HiddenTagsList.ItemsSource = hidden;
         MoreTagsPopup.IsOpen = true;
+    }
+
+    private void OnAddTagClick(object sender, RoutedEventArgs e)
+    {
+        // DataContext popup-а — MainViewModel. Popup живёт в отдельном визуальном дереве
+        // и не наследует DataContext от MainWindow автоматически.
+        if (AddTagPopup.Child is FrameworkElement popupRoot)
+        {
+            popupRoot.DataContext = _viewModel;
+        }
+        AvailableTagsList.ItemsSource = _viewModel.AvailableTagsForAttach.ToList();
+        AddTagPopup.IsOpen = !AddTagPopup.IsOpen;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Когда AvailableTagsForAttach меняется (например, после AttachTag из popup-а),
+        // обновляем чипы в открытом popup-е, чтобы пользователь видел актуальный список.
+        if (e.PropertyName == nameof(MusicLibrary.ViewModels.MainViewModel.AvailableTagsForAttach)
+            && AddTagPopup?.IsOpen == true)
+        {
+            AvailableTagsList.ItemsSource = _viewModel.AvailableTagsForAttach.ToList();
+        }
     }
 
     private void OnMoreFiltersClick(object sender, RoutedEventArgs e)

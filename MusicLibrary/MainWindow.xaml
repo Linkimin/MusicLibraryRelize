@@ -359,6 +359,83 @@
                             </StackPanel>
                         </StackPanel>
 
+                        <!-- Разделитель между рейтингом/реакциями и секцией тегов. -->
+                        <Border Height="1" Background="#D4A57420" Margin="0,12,0,12"
+                                Visibility="{Binding HasSelectedTrack, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                        <!-- Секция «Теги»: чипы привязанных к выбранному треку + кнопка «+ тег». -->
+                        <StackPanel Visibility="{Binding HasSelectedTrack, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    Margin="0,0,0,14">
+                            <TextBlock Text="Теги" Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" Margin="0,0,0,6" />
+                            <ItemsControl>
+                                <ItemsControl.ItemsSource>
+                                    <MultiBinding Converter="{StaticResource TrackTagsLookupConverter}">
+                                        <Binding Path="SelectedTrack.Id" />
+                                        <Binding Path="TagsByTrackId" />
+                                    </MultiBinding>
+                                </ItemsControl.ItemsSource>
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource TagChipStyle}" Padding="8,3" Margin="0,0,6,6">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource TagChipTextStyle}" />
+                                                <Button Margin="6,0,0,0" Padding="2,0" Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                        Command="{Binding DataContext.DetachTagFromSelectedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Открепить">
+                                                    <TextBlock Text="×" FontSize="14" Foreground="{StaticResource MutedForegroundBrush}" />
+                                                </Button>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button x:Name="AddTagButton"
+                                    Style="{StaticResource MoreChipButtonStyle}"
+                                    Margin="0,4,0,0"
+                                    HorizontalAlignment="Left"
+                                    Content="+ тег"
+                                    Click="OnAddTagClick" />
+                        </StackPanel>
+
+                        <!-- Popup со списком доступных для привязки тегов. -->
+                        <Popup x:Name="AddTagPopup"
+                               PlacementTarget="{Binding ElementName=AddTagButton}"
+                               Placement="Bottom"
+                               AllowsTransparency="True"
+                               StaysOpen="False"
+                               PopupAnimation="Fade">
+                            <Border Style="{StaticResource ToolbarPopupBorderStyle}" MinWidth="180" MaxWidth="280">
+                                <StackPanel>
+                                    <TextBlock Text="Доступные теги" Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" Margin="0,0,0,8" />
+                                    <ItemsControl x:Name="AvailableTagsList">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource TagChipStyle}" Padding="6,3" Margin="0,0,6,6" Cursor="Hand">
+                                                    <Border.InputBindings>
+                                                        <MouseBinding MouseAction="LeftClick"
+                                                                      Command="{Binding DataContext.AttachTagToSelectedCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                      CommandParameter="{Binding}" />
+                                                    </Border.InputBindings>
+                                                    <TextBlock Text="{Binding Name}" Style="{StaticResource TagChipTextStyle}" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+
                         <Border Visibility="{Binding ShowOtherPlayingBadge, Converter={StaticResource BooleanToVisibilityConverter}}"
                                 Background="#1AD4A574" BorderBrush="{StaticResource GoldBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,0,0,18">
                             <TextBlock Text="{Binding OtherPlayingText}" Foreground="{StaticResource PrimaryBrush}" FontSize="13" TextTrimming="CharacterEllipsis" />
