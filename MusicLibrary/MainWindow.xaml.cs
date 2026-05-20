@@ -160,9 +160,14 @@ public partial class MainWindow : Window
             }
         }
 
-        // DataContext явно выставляем в MainViewModel, т.к. Popup живёт в отдельном
-        // визуальном дереве и не наследует DataContext от MainWindow.
-        HiddenTagsList.DataContext = _viewModel;
+        // DataContext явно выставляем на корневой Border popup-а, т.к. Popup живёт
+        // в отдельном визуальном дереве и не наследует DataContext от MainWindow.
+        // Корневой Border раздаёт DataContext дочерним StackPanel/ItemsControl/Button,
+        // включая кнопку «Обновить список» (биндинг к RefreshTagFiltersCommand).
+        if (MoreTagsPopup.Child is FrameworkElement popupRoot)
+        {
+            popupRoot.DataContext = _viewModel;
+        }
         HiddenTagsList.ItemTemplate = (DataTemplate)FindResource("HiddenTagChipTemplate");
         HiddenTagsList.ItemsSource = hidden;
         MoreTagsPopup.IsOpen = true;
