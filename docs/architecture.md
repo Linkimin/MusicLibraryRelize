@@ -1,10 +1,10 @@
 # Архитектура MusicBakh
 
-Документ описывает фактическое устройство приложения по состоянию исходного кода версии 1.0.1 (итерация A эпика «Library 2.0», финальный минор которого выйдет как 1.1.0).
+Документ описывает фактическое устройство приложения по состоянию исходного кода версии 1.0.2 (итерация B эпика «Library 2.0», финальный минор которого выйдет как 1.1.0 после завершения всех патч-итераций).
 
 ## Обзор
 
-- **Версия:** 1.0.1.
+- **Версия:** 1.0.2.
 - **Платформа:** WPF, .NET 10 (`net10.0-windows` для Presentation; `net10.0` для остальных слоёв), C# 14, nullable enabled, ImplicitUsings.
 - **Проекты:**
   - `MusicBakh.Core` — доменные сущности и абстракции репозиториев.
@@ -12,9 +12,9 @@
   - `MusicBakh.Infrastructure` — реализации: SQLite через EF Core, HTTP-клиенты, файловая система, сидер.
   - `MusicLibrary` — WPF-хост: ViewModels, Views, WPF-привязанные реализации (`MediaPlayerAudioService`, `ProceduralCoverGenerator`), DI-бутстрап.
 - **Ключевые зависимости:**
-  - `Microsoft.EntityFrameworkCore.Sqlite 10.0.8` — ORM и SQLite-провайдер.
+  - `Microsoft.EntityFrameworkCore.Sqlite 10.0.8` — ORM и SQLite-провайдер. С 1.0.2 поверх схемы лежит виртуальная FTS5-таблица `TracksFts` (external content) с триггерами синхронизации.
   - `Microsoft.Extensions.Hosting 10.0.x` — DI-контейнер и host-инфраструктура.
-  - `TagLibSharp 2.3.0` — чтение ID3-тегов.
+  - `TagLibSharp 2.3.0` — чтение ID3-тегов (с 1.0.2 — включая `tag.Album`).
   - `System.Windows.Media.MediaPlayer` (BCL WPF) — воспроизведение аудио.
 
 ## Слои и зависимости
@@ -55,15 +55,17 @@ Presentation и Infrastructure — два независимых конкрет�
 ```
 MusicBakh.Core/
 ├── Domain/
-│   ├── Track.cs                        — доменная модель трека
+│   ├── Track.cs                        — доменная модель трека (Title/Artist/Album/Genre/Duration/FilePath/CoverPath/IsBuiltIn)
 │   ├── PlaybackEntry.cs                — запись истории воспроизведения
 │   ├── PlayerSettings.cs               — громкость, mute, режим повтора
 │   ├── RepeatMode.cs                   — enum (NoRepeat/Current/Library)
 │   └── OperationResult.cs              — результат операций UI
 └── Abstractions/
-    ├── ITrackRepository.cs             — CRUD-репозиторий треков
-    ├── IListeningHistoryRepository.cs  — хранилище истории
+    ├── ITrackRepository.cs             — репозиторий треков (Get/Find/Add/Update/Remove)
+    ├── IListeningHistoryRepository.cs  — хранилище истории + агрегации (GetTop/GetRecentUnique/GetNeverPlayed)
     ├── IPlayerSettingsRepository.cs    — сохранение настроек плеера
+    ├── ISearchService.cs               — полнотекстовый поиск по библиотеке (с 1.0.2)
+    ├── ListeningStats.cs               — DTO топа прослушиваний (Track, PlayCount, LastPlayedUtc)
     └── IClock.cs                       — абстракция системного времени
 
 MusicBakh.Application/
@@ -100,11 +102,14 @@ MusicBakh.Infrastructure/
 │   ├── Entities/                       — EF-сущности (TrackEntity, ListeningHistoryEntryEntity, KeyValueEntryEntity)
 │   ├── Configurations/                 — IEntityTypeConfiguration для каждой таблицы
 │   ├── Repositories/                   — SqliteTrackRepository, SqliteListeningHistoryRepository, SqlitePlayerSettingsRepository
-│   └── Migrations/                     — AddLibrarySchema, AddListeningHistory, AddKeyValueStore
+│   └── Migrations/                     — AddLibrarySchema, AddListeningHistory, AddKeyValueStore, AddTrackAlbum, AddTracksFts
+├── Search/
+│   ├── FtsQueryBuilder.cs              — санитайзер пользовательской строки → FTS5 MATCH (с 1.0.2)
+│   └── SqliteFtsSearchService.cs       — реализация ISearchService поверх TracksFts (с 1.0.2)
 ├── Migration/
 │   └── JsonToSqliteMigrationService.cs — перенос userTracks.json → SQLite
 ├── Seeding/
-│   └── BuiltInTrackSeeder.cs           — наполнение встроенными треками при первом запуске
+│   └── BuiltInTrackSeeder.cs           — наполнение встроенными треками + refresh устаревших путей
 ├── Import/                             — TrackImporter
 ├── Metadata/                           — DefaultMetadataResolver, TagLibSharpTagReader, MusicBrainzClient, RussianGenreNormalizer
 ├── Covers/                             — CompositeCoverResolver, ItunesCoverClient
@@ -120,12 +125,15 @@ MusicLibrary/
 ├── NativeWindowAppearance.cs           — DWM dark caption/border/text color
 ├── ViewModels/
 │   ├── ViewModelBase.cs
-│   ├── MainViewModel.cs                — главный VM, все ICommand
-│   └── AddTrackViewModel.cs
+│   ├── MainViewModel.cs                — главный VM, все ICommand, SearchText (с 1.0.2)
+│   ├── AddTrackViewModel.cs
+│   └── StatsViewModel.cs               — топ/недавние/ни разу (с 1.0.2)
 ├── Views/
 │   ├── AddTrackWindow.xaml(.cs)
 │   ├── ConfirmationDialogWindow.xaml(.cs)
-│   └── ConfirmationDialogService.cs
+│   ├── ConfirmationDialogService.cs
+│   ├── StatsWindow.xaml(.cs)           — окно статистики, с 1.0.2
+│   └── StatsWindowService.cs           — фабрика открытия окна, с 1.0.2
 ├── Services/
 │   ├── Playback/MediaPlayerAudioService.cs   — WPF MediaPlayer
 │   ├── Covers/ProceduralCoverGenerator.cs    — градиентная заглушка обложки
@@ -143,10 +151,12 @@ MusicLibrary/
 
 MusicLibrary.Tests/
 ├── Persistence/                        — SqliteTrackRepositoryTests, SqliteListeningHistoryRepositoryTests, SqlitePlayerSettingsRepositoryTests
+├── Search/                             — FtsQueryBuilderTests, SqliteFtsSearchServiceTests, SqliteFtsSearchServiceBenchmark (с 1.0.2)
 ├── Migration/                          — JsonToSqliteMigrationServiceTests
-├── Seeding/                            — тесты BuiltInTrackSeeder
+├── Seeding/                            — тесты BuiltInTrackSeeder (включая refresh путей)
 ├── TestSupport/
-│   └── InMemorySqliteDbContextFactory.cs   — in-memory SQLite для тестов
+│   ├── InMemorySqliteDbContextFactory.cs    — EnsureCreated-фикстура для обычных тестов
+│   └── MigratedSqliteDbContextFactory.cs    — Migrate()-фикстура для тестов, опирающихся на FTS5 (с 1.0.2)
 └── *.cs                                — тесты MainViewModel, сервисов, конвертеров
 ```
 
@@ -312,25 +322,28 @@ SelectedTrack ─── PlayPauseCommand ──▶ MediaPlayerAudioService.Open(
 
 ## Тестирование
 
-Единственный тестовый проект — `MusicLibrary.Tests` (xUnit). По состоянию версии 1.0.1: **125 тестов**.
+Единственный тестовый проект — `MusicLibrary.Tests` (xUnit). По состоянию версии 1.0.2: **169 тестов** в обычном прогоне + **1 бенчмарк** под трейтом `Category=Benchmark`.
 
-- **SQLite-репозитории** (`SqliteTrackRepositoryTests`, `SqliteListeningHistoryRepositoryTests`, `SqlitePlayerSettingsRepositoryTests`) — работают поверх in-memory SQLite через [`InMemorySqliteDbContextFactory`](../MusicLibrary.Tests/TestSupport/InMemorySqliteDbContextFactory.cs).
-- **Миграция** (`JsonToSqliteMigrationServiceTests`) — проверяет перенос записей из JSON в SQLite и переименование файла.
-- **ViewModel** (`MainViewModelTests`) — покрывает логику `MainViewModel` через test doubles (моки репозиториев и сервисов), без поднятия WPF.
+- **SQLite-репозитории** (`SqliteTrackRepositoryTests`, `SqliteListeningHistoryRepositoryTests`, `SqlitePlayerSettingsRepositoryTests`) — работают поверх in-memory SQLite через [`InMemorySqliteDbContextFactory`](../MusicLibrary.Tests/TestSupport/InMemorySqliteDbContextFactory.cs) (`EnsureCreated` — обходит raw-SQL миграции).
+- **FTS5-поиск** (`SqliteFtsSearchServiceTests`, `FtsQueryBuilderTests`) — `FtsQueryBuilder` юнит-тестируется напрямую; интеграционные тесты `SqliteFtsSearchService` работают поверх [`MigratedSqliteDbContextFactory`](../MusicLibrary.Tests/TestSupport/MigratedSqliteDbContextFactory.cs), которая зовёт `Database.Migrate()` — единственный способ прогнать raw-SQL миграции (виртуальная таблица + триггеры) в тестах.
+- **Бенчмарк** (`SqliteFtsSearchServiceBenchmark`, `[Trait("Category", "Benchmark")]`) — сидит 50 000 случайных треков и проверяет средний поиск < 100 мс (DoD роадмапа 1.1.0). Запуск: `dotnet test --filter "Category=Benchmark"`. Обычный `dotnet test --filter "Category!=Benchmark"` его пропускает.
+- **Миграция данных** (`JsonToSqliteMigrationServiceTests`) — проверяет перенос записей из JSON в SQLite и переименование файла.
+- **Сидер** (`BuiltInTrackSeederTests`) — добавление в пустую БД, идемпотентность, refresh устаревших путей при переезде сборки (с 1.0.2).
+- **ViewModel** (`MainViewModelTests`) — покрывает логику `MainViewModel` через test doubles, без поднятия WPF; с 1.0.2 включает тесты `SearchText` + комбинация фильтров.
 - **Сервисы** — `DefaultMetadataResolverTests`, `GenreNormalizerTests`, `PlaybackQueueStrategyTests`, `CompositeTrackRepositoryTests`, `FileServiceTests` и др.
 
 ## Внешний вид окна
 
-[`NativeWindowAppearance.cs`](../MusicLibrary/NativeWindowAppearance.cs) через DWM API красит нативный caption-bar Windows в фирменный тёмно-фиолетовый (`#16161F`) и выставляет светлый текст заголовка. Применяется в `SourceInitialized` главного окна и `ConfirmationDialogWindow`.
+[`NativeWindowAppearance.cs`](../MusicLibrary/NativeWindowAppearance.cs) через DWM API красит нативный caption-bar Windows в фирменный тёмно-фиолетовый (`#16161F`), выставляет светлый текст заголовка и тёмный border. Применяется в `SourceInitialized` главного окна, `AddTrackWindow`, `ConfirmationDialogWindow` и `StatsWindow`.
 
 ## Ресурсы и стили
 
 Все XAML-словари лежат в `MusicLibrary/Resources/` и подключаются в [`App.xaml`](../MusicLibrary/App.xaml):
 
 - `Colors.xaml`, `Brushes.xaml` — палитра.
-- `ButtonStyles.xaml`, `ComboBoxStyles.xaml`, `SliderStyles.xaml`, `ScrollBarStyles.xaml`, `ListStyles.xaml` — переопределение системных контролов.
+- `ButtonStyles.xaml`, `ComboBoxStyles.xaml`, `TextBoxStyles.xaml`, `TabStyles.xaml`, `SliderStyles.xaml`, `ScrollBarStyles.xaml`, `ListStyles.xaml` — переопределение системных контролов. `TextBoxStyles.xaml` и `TabStyles.xaml` появились в 1.0.2 ради поля поиска и таб-контрола в `StatsWindow`.
 - `PlayerIcons.xaml` — векторные иконки play/pause/skip/repeat/volume через `Geometry`.
-- `TrackTemplates.xaml` — `DataTemplate` для карточки трека в `ListBox`.
+- `TrackTemplates.xaml` — `DataTemplate` для карточки трека в `ListBox` + три stats-шаблона (`StatsTopItemTemplate`, `StatsRecentItemTemplate`, `StatsNeverPlayedItemTemplate`).
 
 ## Сборка
 

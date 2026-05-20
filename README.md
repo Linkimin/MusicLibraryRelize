@@ -10,11 +10,13 @@
 - **Воспроизведение** — Play/Pause, перемотка ±10 секунд, переход к следующему/предыдущему треку, активный seek-слайдер.
 - **Громкость и mute** — отдельный слайдер 0–100% и кнопка беззвучного режима.
 - **Режимы повтора** — без повтора / повтор текущего трека / повтор всей видимой библиотеки.
-- **Горячие клавиши** — `Space`: play/pause, `←`/`→`: перемотка ±10 с, `Ctrl+←`/`Ctrl+→`: предыдущий/следующий, `M`: mute, `R`: смена режима повтора.
-- **Метаданные** — каскад «теги ID3 → очистка от мусорных суффиксов агрегаторов → MusicBrainz → имя файла».
+- **Поиск по библиотеке** — мгновенный полнотекстовый поиск по названию, исполнителю, альбому, жанру (SQLite FTS5, дебаунс ~250 мс). Совмещается с фильтром по жанру. `Ctrl+F` фокусирует поле, `Esc` очищает.
+- **Экран статистики** — отдельное окно (`Ctrl+T` или кнопка «Статистика» в шапке) с вкладками **Топ-50**, **Недавние** (уникальные по последнему воспроизведению), **Ни разу не играли**.
+- **Горячие клавиши** — `Space`: play/pause, `Shift+←`/`Shift+→`: перемотка ±10 с, `Ctrl+←`/`Ctrl+→`: предыдущий/следующий, `Ctrl+M`: mute, `Ctrl+R`: смена режима повтора, `Ctrl+F`: фокус на поиск, `Ctrl+T`: статистика.
+- **Метаданные** — каскад «теги ID3 → очистка от мусорных суффиксов агрегаторов → MusicBrainz → имя файла». С 1.0.2 читается также `Album`.
 - **Жанры на русском** — словарь из 50+ маппингов (`rock` → «Рок», `electronic` → «Электроника» и т. д.).
 - **Обложки** — встроенная картинка ID3 → iTunes Search API (600×600) → процедурная заглушка с буквой исполнителя.
-- **История воспроизведения** — последние 50 запусков, двойной клик переигрывает.
+- **История воспроизведения** — виджет «недавнее» (последние 50 запусков, двойной клик переигрывает) + полный журнал на экране статистики.
 - **Фильтр по жанру** — выпадающий список, автоматически собирается из библиотеки.
 - **Сохранение и удаление** — экспорт выбранного трека в файл, удаление пользовательских треков с подтверждением.
 - **Persistence** — громкость, mute и режим повтора восстанавливаются между запусками.
@@ -36,7 +38,7 @@
 
 Пользовательские данные хранятся в:
 
-- `%LocalAppData%\MusicLibrary\library.db` — SQLite-база с треками, историей и настройками плеера (заменила `userTracks.json` начиная с 1.0.1).
+- `%LocalAppData%\MusicLibrary\library.db` — SQLite-база с треками (с FTS5-индексом `TracksFts` начиная с 1.0.2), историей и настройками плеера (заменила `userTracks.json` начиная с 1.0.1).
 - `%LocalAppData%\MusicLibrary\Music\` — импортированные аудиофайлы.
 - `%LocalAppData%\MusicLibrary\Covers\` — обложки.
 - `%LocalAppData%\MusicLibrary\userTracks.json.backup-<timestamp>` — резервная копия старого индекса, появляется только при первом запуске после апгрейда с 1.0.x; можно удалить вручную.
@@ -61,14 +63,16 @@ dotnet test
 ## Сборка релиза
 
 ```powershell
-pwsh scripts/build-release.ps1 -Version 1.0.0
+pwsh scripts/build-release.ps1 -Version 1.0.2
 ```
 
-Скрипт публикует single-file self-contained сборку под win-x64 в `publish\win-x64\` и собирает установщик через Inno Setup в `release\MusicBakh-Setup-1.0.0.exe`. Подробности — в [docs/release-checklist.md](docs/release-checklist.md).
+Скрипт публикует single-file self-contained сборку под win-x64 в `publish\win-x64\` и собирает установщик через Inno Setup в `release\MusicBakh-Setup-1.0.2.exe`. Подробности — в [docs/release-checklist.md](docs/release-checklist.md).
 
 ## Архитектура
 
-WPF + лёгкий MVVM на .NET 10. Начиная с версии 1.1.0 приложение разбито на 4 проекта: `MusicBakh.Core`, `MusicBakh.Application`, `MusicBakh.Infrastructure`, `MusicLibrary`. DI-контейнер — `Microsoft.Extensions.Hosting`; бутстрап выполняется в [`App.OnStartup`](MusicLibrary/App.xaml.cs). Полное описание слоёв и сервисов — [docs/architecture.md](docs/architecture.md).
+WPF + лёгкий MVVM на .NET 10. Начиная с релиза 1.0.1 (итерация A эпика «Library 2.0») приложение разбито на 4 проекта: `MusicBakh.Core`, `MusicBakh.Application`, `MusicBakh.Infrastructure`, `MusicLibrary`. Хранение — SQLite через EF Core 10 (с 1.0.2 поверх лежит FTS5-индекс `TracksFts` для полнотекстового поиска). DI-контейнер — `Microsoft.Extensions.Hosting`; бутстрап выполняется в [`App.OnStartup`](MusicLibrary/App.xaml.cs). Полное описание слоёв и сервисов — [docs/architecture.md](docs/architecture.md).
+
+Стратегическое видение продукта на 3 года вперёд — [docs/roadmap-vision.md](docs/roadmap-vision.md). Changelog по версиям — [docs/changelog/](docs/changelog/).
 
 ## Лицензия
 
