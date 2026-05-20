@@ -30,6 +30,30 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void SearchText_Preserves_SearchService_Order()
+    {
+        // ISearchService возвращает треки в порядке релевантности (bm25). UI обязан
+        // показать их в том же порядке, иначе ORDER BY bm25 в FTS-сервисе бесполезен.
+        // Регрессия итерации B: ApplyFilters использовала _allTracks.Where(...) и
+        // тем самым возвращала результат в порядке _allTracks (по Id).
+        var tracks = new[]
+        {
+            new Track { Id = 1, Title = "Alpha",   Artist = "A", Genre = "Рок", FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "Beta",    Artist = "B", Genre = "Рок", FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "Gamma",   Artist = "C", Genre = "Рок", FilePath = "3.mp3" }
+        };
+        var rankedSearch = new RankedSearchService(new[] { tracks[1], tracks[0], tracks[2] }); // Beta, Alpha, Gamma
+        var viewModel = CreateViewModelWithSearch(tracks, rankedSearch);
+
+        viewModel.SearchText = "anything";
+
+        Assert.Equal(3, viewModel.DisplayedTracks.Count);
+        Assert.Equal("Beta",  viewModel.DisplayedTracks[0].Title);
+        Assert.Equal("Alpha", viewModel.DisplayedTracks[1].Title);
+        Assert.Equal("Gamma", viewModel.DisplayedTracks[2].Title);
+    }
+
+    [Fact]
     public void SearchText_FiltersDisplayedTracks_ViaSearchService()
     {
         var tracks = new[]
@@ -798,6 +822,18 @@ public sealed class MainViewModelTests
             addTrackDialogService: null,
             confirmationService: null,
             searchService: searchService);
+    }
+
+    private sealed class RankedSearchService : ISearchService
+    {
+        // Возвращает заранее заданный список треков ровно в указанном порядке —
+        // имитирует FTS5 + ORDER BY bm25. Нужен тестам на сохранение порядка.
+        private readonly IReadOnlyList<Track> _ranked;
+
+        public RankedSearchService(IReadOnlyList<Track> ranked) => _ranked = ranked;
+
+        public IReadOnlyList<Track> Search(string query, int limit = 500) =>
+            string.IsNullOrWhiteSpace(query) ? Array.Empty<Track>() : _ranked.Take(limit).ToList();
     }
 
     private sealed class StubSearchService : ISearchService

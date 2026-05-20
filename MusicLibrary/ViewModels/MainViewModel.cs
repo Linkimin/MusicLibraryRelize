@@ -440,10 +440,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (!string.IsNullOrWhiteSpace(SearchText) && _searchService is not null)
         {
             var hits = _searchService.Search(SearchText);
-            var hitIds = new HashSet<int>(hits.Select(t => t.Id));
-            // Возвращаем из _allTracks, чтобы порядок и идентичность объектов совпадали с
-            // главной коллекцией (Selected/Playing-сравнения по reference в других местах).
-            tracks = _allTracks.Where(t => hitIds.Contains(t.Id));
+            // Сохраняем порядок поиска (bm25-релевантность): для каждого hit-Id запоминаем
+            // его индекс и потом сортируем _allTracks по этому индексу. Берём треки
+            // из _allTracks, чтобы reference-equality с Selected/Playing-треком сохранилось.
+            var hitOrder = new Dictionary<int, int>(hits.Count);
+            for (int i = 0; i < hits.Count; i++)
+            {
+                hitOrder[hits[i].Id] = i;
+            }
+            tracks = _allTracks
+                .Where(t => hitOrder.ContainsKey(t.Id))
+                .OrderBy(t => hitOrder[t.Id]);
         }
         else
         {
