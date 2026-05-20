@@ -42,6 +42,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private string _searchText = string.Empty;
     private int _minRating;
     private TrackReaction? _reactionFilter;
+    private readonly Dictionary<int, ObservableCollection<Tag>> _tagsByTrackId = new();
     private readonly ObservableCollection<int> _selectedTagIds = new();
     private readonly ObservableCollection<TagFilterItem> _tagFilters = new();
     private Track? _selectedTrack;
@@ -88,6 +89,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         LoadTagFilters();
 
         _allTracks = new List<Track>(trackRepository.GetAll());
+
+        // Заполняем кэш тегов при старте: один запрос на трек.
+        if (_tagRepository is not null)
+        {
+            foreach (var t in _allTracks)
+            {
+                _tagsByTrackId[t.Id] = new ObservableCollection<Tag>(_tagRepository.GetTagsForTrack(t.Id));
+            }
+        }
+
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
         PlaybackHistory = new ObservableCollection<PlaybackEntry>();
         Genres = new ObservableCollection<string>(
@@ -127,6 +138,34 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ToggleTagFilterCommand = new RelayCommand(parameter => ToggleTagFilter(parameter as TagFilterItem));
         RefreshTagFiltersCommand = new RelayCommand(_ => LoadTagFilters());
         ClearFiltersCommand = new RelayCommand(_ => ClearFilters());
+
+        // Прикрепляем тег к выбранному треку и обновляем кэш.
+        AttachTagToSelectedCommand = new RelayCommand(parameter =>
+        {
+            if (SelectedTrack is null || _tagRepository is null) return;
+            if (parameter is not Tag tag) return;
+            if (_tagsByTrackId.TryGetValue(SelectedTrack.Id, out var existing) &&
+                existing.Any(t => t.Id == tag.Id)) return;
+            _tagRepository.AttachTag(SelectedTrack.Id, tag.Id);
+            if (!_tagsByTrackId.ContainsKey(SelectedTrack.Id))
+                _tagsByTrackId[SelectedTrack.Id] = new ObservableCollection<Tag>();
+            _tagsByTrackId[SelectedTrack.Id].Add(tag);
+            OnPropertyChanged(nameof(AvailableTagsForAttach));
+        });
+
+        // Открепляем тег от выбранного трека и обновляем кэш.
+        DetachTagFromSelectedCommand = new RelayCommand(parameter =>
+        {
+            if (SelectedTrack is null || _tagRepository is null) return;
+            if (parameter is not Tag tag) return;
+            _tagRepository.DetachTag(SelectedTrack.Id, tag.Id);
+            if (_tagsByTrackId.TryGetValue(SelectedTrack.Id, out var collection))
+            {
+                var existingTag = collection.FirstOrDefault(t => t.Id == tag.Id);
+                if (existingTag is not null) collection.Remove(existingTag);
+            }
+            OnPropertyChanged(nameof(AvailableTagsForAttach));
+        });
         SetReactionFilterCommand = new RelayCommand(parameter => SetReactionFilter(parameter));
         SetMinRatingCommand = new RelayCommand(parameter =>
         {
@@ -173,6 +212,27 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand ClearFiltersCommand { get; }
     public ICommand SetReactionFilterCommand { get; }
     public ICommand SetMinRatingCommand { get; }
+    public ICommand AttachTagToSelectedCommand { get; }
+    public ICommand DetachTagFromSelectedCommand { get; }
+
+    /// <summary>Кэш тегов по треку. XAML-конвертер использует его для отображения чипов на карточке трека.</summary>
+    public IReadOnlyDictionary<int, ObservableCollection<Tag>> TagsByTrackId => _tagsByTrackId;
+
+    /// <summary>
+    /// Теги, доступные для прикрепления к выбранному треку (глобальный список минус уже прикреплённые).
+    /// Пересчитывается при смене SelectedTrack и при каждой операции attach/detach.
+    /// </summary>
+    public IEnumerable<Tag> AvailableTagsForAttach
+    {
+        get
+        {
+            if (SelectedTrack is null) return Array.Empty<Tag>();
+            var attached = _tagsByTrackId.TryGetValue(SelectedTrack.Id, out var c)
+                ? new HashSet<int>(c.Select(t => t.Id))
+                : new HashSet<int>();
+            return _tagFilters.Where(item => !attached.Contains(item.Tag.Id)).Select(item => item.Tag).ToList();
+        }
+    }
 
     /// <summary>Чипы тегов для левой колонки. Обновляются вручную через RefreshTagFiltersCommand.</summary>
     public ObservableCollection<TagFilterItem> TagFilters => _tagFilters;
@@ -261,6 +321,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowOtherPlayingBadge));
                 OnPropertyChanged(nameof(OtherPlayingText));
                 OnPropertyChanged(nameof(CanDeleteSelected));
+                OnPropertyChanged(nameof(AvailableTagsForAttach));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -488,6 +549,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             SelectedTrack = null;
         }
+
+        // Удаляем запись кэша тегов вместе с треком.
+        _tagsByTrackId.Remove(track.Id);
     }
 
     private void SetRatingOnSelected(object? parameter)
@@ -654,6 +718,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             DisplayedTracks.Add(track);
         }
+
+        // Новый трек ещё не имеет тегов — инициализируем пустую коллекцию в кэше.
+        _tagsByTrackId[track.Id] = new ObservableCollection<Tag>();
     }
 
     private void ApplyFilters()
