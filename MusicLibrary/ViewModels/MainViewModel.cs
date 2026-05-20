@@ -4,6 +4,7 @@ using MusicBakh.Core.Abstractions;
 using MusicBakh.Core.Domain;
 using MusicBakh.Infrastructure.Playback;
 using MusicLibrary.Commands;
+using MusicLibrary.Services.Library;
 using MusicLibrary.Views;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -33,10 +34,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IPlayerSettingsRepository _playerSettingsRepository;
     private readonly ISearchService? _searchService;
     private readonly IStatsWindowService? _statsWindowService;
+    private readonly ITagRepository? _tagRepository;
     private readonly DispatcherTimer _progressTimer;
 
     private string _selectedGenre = AllGenres;
     private string _searchText = string.Empty;
+    private int _minRating;
+    private TrackReaction? _reactionFilter;
+    private readonly ObservableCollection<int> _selectedTagIds = new();
     private Track? _selectedTrack;
     private Track? _playingTrack;
     private string _statusMessage = "Выберите трек для воспроизведения.";
@@ -61,7 +66,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IAddTrackDialogService? addTrackDialogService = null,
         IConfirmationService? confirmationService = null,
         ISearchService? searchService = null,
-        IStatsWindowService? statsWindowService = null)
+        IStatsWindowService? statsWindowService = null,
+        ITagRepository? tagRepository = null)
     {
         _trackRepository = trackRepository;
         _fileService = fileService;
@@ -73,6 +79,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _confirmationService = confirmationService;
         _searchService = searchService;
         _statsWindowService = statsWindowService;
+        _tagRepository = tagRepository;
+        _selectedTagIds.CollectionChanged += (_, _) => ApplyFilters();
 
         _allTracks = new List<Track>(trackRepository.GetAll());
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
@@ -165,6 +173,36 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             }
         }
     }
+
+    /// <summary>Минимальный рейтинг трека для фильтра (0..5). 0 = фильтр не активен.</summary>
+    public int MinRating
+    {
+        get => _minRating;
+        set
+        {
+            int clamped = Math.Clamp(value, 0, 5);
+            if (SetProperty(ref _minRating, clamped))
+            {
+                ApplyFilters();
+            }
+        }
+    }
+
+    /// <summary>Фильтр по реакции. null = «любая реакция».</summary>
+    public TrackReaction? ReactionFilter
+    {
+        get => _reactionFilter;
+        set
+        {
+            if (SetProperty(ref _reactionFilter, value))
+            {
+                ApplyFilters();
+            }
+        }
+    }
+
+    /// <summary>Идентификаторы тегов, активных в фильтре (OR-семантика). UI добавляет/удаляет через эту коллекцию.</summary>
+    public ObservableCollection<int> SelectedTagIds => _selectedTagIds;
 
     public Track? SelectedTrack
     {
@@ -431,38 +469,33 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void ApplyFilters()
     {
-        DisplayedTracks.Clear();
-
-        // Поиск идёт через ISearchService (FTS5 SQL под капотом), фильтр по жанру —
-        // отдельным in-memory пересечением. Это держит контракт ISearchService узким
-        // (одна строка → треки) и позволяет тестам подкидывать stub.
-        IEnumerable<Track> tracks;
+        // Собираем снимок активных критериев и отдаём в чистую функцию LibraryFilter.
+        // Это держит метод тонким и позволяет юнит-тестам фильтра жить без WPF.
+        IReadOnlyList<Track>? hits = null;
         if (!string.IsNullOrWhiteSpace(SearchText) && _searchService is not null)
         {
-            var hits = _searchService.Search(SearchText);
-            // Сохраняем порядок поиска (bm25-релевантность): для каждого hit-Id запоминаем
-            // его индекс и потом сортируем _allTracks по этому индексу. Берём треки
-            // из _allTracks, чтобы reference-equality с Selected/Playing-треком сохранилось.
-            var hitOrder = new Dictionary<int, int>(hits.Count);
-            for (int i = 0; i < hits.Count; i++)
-            {
-                hitOrder[hits[i].Id] = i;
-            }
-            tracks = _allTracks
-                .Where(t => hitOrder.ContainsKey(t.Id))
-                .OrderBy(t => hitOrder[t.Id]);
-        }
-        else
-        {
-            tracks = _allTracks;
+            hits = _searchService.Search(SearchText);
         }
 
-        if (SelectedGenre != AllGenres)
-        {
-            tracks = tracks.Where(track => track.Genre == SelectedGenre);
-        }
+        var criteria = new LibraryFilterCriteria(
+            hits,
+            SelectedGenre == AllGenres ? null : SelectedGenre,
+            MinRating,
+            ReactionFilter,
+            _selectedTagIds);
 
-        foreach (Track track in tracks)
+        // Адаптер для LibraryFilter: ему нужен делегат «id → список тегов-id»,
+        // чтобы не тащить ITagRepository в pure-функцию. Если репозитория нет
+        // (старые unit-тесты с null), фильтр по тегам в criteria всё равно
+        // не активируется (пустой SelectedTagIds), так что делегат не позовётся.
+        Func<int, IReadOnlyList<int>>? tagsProvider = _tagRepository is null
+            ? null
+            : trackId => _tagRepository.GetTagsForTrack(trackId).Select(t => t.Id).ToList();
+
+        var filtered = LibraryFilter.Apply(_allTracks, criteria, tagsProvider);
+
+        DisplayedTracks.Clear();
+        foreach (var track in filtered)
         {
             DisplayedTracks.Add(track);
         }
