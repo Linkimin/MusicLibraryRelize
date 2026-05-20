@@ -52,6 +52,9 @@
             <converters:TagsToFirstNConverter x:Key="TagsToFirstNConverter" />
             <converters:TagsOverflowCountConverter x:Key="TagsOverflowCountConverter" />
             <converters:TrackTagsLookupConverter x:Key="TrackTagsLookupConverter" />
+            <converters:TrackTagsFirstNMultiConverter x:Key="TrackTagsFirstNMultiConverter" />
+            <converters:TrackTagsOverflowCountMultiConverter x:Key="TrackTagsOverflowCountMultiConverter" />
+            <converters:TrackTagsOverflowVisibilityMultiConverter x:Key="TrackTagsOverflowVisibilityMultiConverter" />
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         </ResourceDictionary>
