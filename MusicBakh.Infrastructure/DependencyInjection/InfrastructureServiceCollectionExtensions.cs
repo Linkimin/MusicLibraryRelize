@@ -35,6 +35,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ITrackRepository, SqliteTrackRepository>();
         services.AddSingleton<IListeningHistoryRepository, SqliteListeningHistoryRepository>();
         services.AddSingleton<IPlayerSettingsRepository, SqlitePlayerSettingsRepository>();
+        services.AddSingleton<ITagRepository, SqliteTagRepository>();
         services.AddSingleton<ISearchService, SqliteFtsSearchService>();
         services.AddSingleton<IClock, SystemClock>();
 
