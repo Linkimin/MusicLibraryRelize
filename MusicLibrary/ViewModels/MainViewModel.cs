@@ -34,6 +34,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IPlayerSettingsRepository _playerSettingsRepository;
     private readonly ISearchService? _searchService;
     private readonly IStatsWindowService? _statsWindowService;
+    private readonly ITagsWindowService? _tagsWindowService;
     private readonly ITagRepository? _tagRepository;
     private readonly DispatcherTimer _progressTimer;
 
@@ -67,7 +68,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IConfirmationService? confirmationService = null,
         ISearchService? searchService = null,
         IStatsWindowService? statsWindowService = null,
-        ITagRepository? tagRepository = null)
+        ITagRepository? tagRepository = null,
+        ITagsWindowService? tagsWindowService = null)
     {
         _trackRepository = trackRepository;
         _fileService = fileService;
@@ -79,6 +81,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _confirmationService = confirmationService;
         _searchService = searchService;
         _statsWindowService = statsWindowService;
+        _tagsWindowService = tagsWindowService;
         _tagRepository = tagRepository;
         _selectedTagIds.CollectionChanged += (_, _) => ApplyFilters();
 
@@ -108,6 +111,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         OpenStatsCommand = new RelayCommand(
             _ => _statsWindowService?.Show(),
             _ => _statsWindowService is not null);
+        OpenTagsCommand = new RelayCommand(
+            _ => _tagsWindowService?.Show(),
+            _ => _tagsWindowService is not null);
 
         SkipForwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(10)), _ => PlayingTrack is not null);
         SkipBackwardCommand = new RelayCommand(_ => SkipBy(TimeSpan.FromSeconds(-10)), _ => PlayingTrack is not null);
@@ -137,6 +143,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand PlayTrackCommand { get; }
     public ICommand ReplayHistoryEntryCommand { get; }
     public ICommand OpenStatsCommand { get; }
+    public ICommand OpenTagsCommand { get; }
     public ICommand SkipForwardCommand { get; }
     public ICommand SkipBackwardCommand { get; }
     public ICommand PreviousTrackCommand { get; }

@@ -17,6 +17,7 @@
         <KeyBinding Key="R" Modifiers="Control" Command="{Binding CycleRepeatModeCommand}" />
         <KeyBinding Key="F" Modifiers="Control" Command="ApplicationCommands.Find" />
         <KeyBinding Key="T" Modifiers="Control" Command="{Binding OpenStatsCommand}" />
+        <KeyBinding Key="G" Modifiers="Control" Command="{Binding OpenTagsCommand}" />
         <!-- Стрелки только с модификаторами: иначе их перехватывает ListBox треков
              (стрелки вверх/вниз/влево/вправо для навигации) или Slider громкости/seek. -->
         <KeyBinding Key="Left"  Modifiers="Shift"   Command="{Binding SkipBackwardCommand}" />
@@ -38,6 +39,7 @@
             <DockPanel VerticalAlignment="Center">
                 <Button DockPanel.Dock="Right" Content="＋ Добавить трек" Command="{Binding AddTrackCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Padding="18,0" />
                 <Button DockPanel.Dock="Right" Content="Статистика" Command="{Binding OpenStatsCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Padding="18,0" Margin="0,0,12,0" ToolTip="Ctrl+T" />
+                <Button DockPanel.Dock="Right" Content="Теги" Command="{Binding OpenTagsCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Padding="18,0" Margin="0,0,12,0" ToolTip="Ctrl+G" />
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Width="54"
                            Height="54"
