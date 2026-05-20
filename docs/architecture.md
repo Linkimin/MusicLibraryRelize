@@ -1,10 +1,10 @@
 # Архитектура MusicBakh
 
-Документ описывает фактическое устройство приложения по состоянию исходного кода версии 1.0.2 (итерация B эпика «Library 2.0», финальный минор которого выйдет как 1.1.0 после завершения всех патч-итераций).
+Документ описывает фактическое устройство приложения по состоянию исходного кода версии 1.0.3 (итерация C эпика «Library 2.0», финальный минор которого выйдет как 1.1.0 после завершения всех патч-итераций).
 
 ## Обзор
 
-- **Версия:** 1.0.2.
+- **Версия:** 1.0.3.
 - **Платформа:** WPF, .NET 10 (`net10.0-windows` для Presentation; `net10.0` для остальных слоёв), C# 14, nullable enabled, ImplicitUsings.
 - **Проекты:**
   - `MusicBakh.Core` — доменные сущности и абстракции репозиториев.
@@ -15,6 +15,7 @@
   - `Microsoft.EntityFrameworkCore.Sqlite 10.0.8` — ORM и SQLite-провайдер. С 1.0.2 поверх схемы лежит виртуальная FTS5-таблица `TracksFts` (external content) с триггерами синхронизации.
   - `Microsoft.Extensions.Hosting 10.0.x` — DI-контейнер и host-инфраструктура.
   - `TagLibSharp 2.3.0` — чтение ID3-тегов (с 1.0.2 — включая `tag.Album`).
+  - С 1.0.3: новый `ITagRepository` (Core) + `SqliteTagRepository` (Infrastructure) для работы с пользовательскими тегами-ярлыками.
   - `System.Windows.Media.MediaPlayer` (BCL WPF) — воспроизведение аудио.
 
 ## Слои и зависимости
@@ -55,7 +56,9 @@ Presentation и Infrastructure — два независимых конкрет�
 ```
 MusicBakh.Core/
 ├── Domain/
-│   ├── Track.cs                        — доменная модель трека (Title/Artist/Album/Genre/Duration/FilePath/CoverPath/IsBuiltIn)
+│   ├── Track.cs                        — доменная модель трека (Title/Artist/Album/Genre/Duration/FilePath/CoverPath/IsBuiltIn/Rating/Reaction)
+│   ├── Tag.cs                          — доменная модель тега (Id, Name, Color?) — с 1.0.3
+│   ├── TrackReaction.cs                — enum (None/Liked/Disliked) — с 1.0.3
 │   ├── PlaybackEntry.cs                — запись истории воспроизведения
 │   ├── PlayerSettings.cs               — громкость, mute, режим повтора
 │   ├── RepeatMode.cs                   — enum (NoRepeat/Current/Library)
@@ -65,6 +68,7 @@ MusicBakh.Core/
     ├── IListeningHistoryRepository.cs  — хранилище истории + агрегации (GetTop/GetRecentUnique/GetNeverPlayed)
     ├── IPlayerSettingsRepository.cs    — сохранение настроек плеера
     ├── ISearchService.cs               — полнотекстовый поиск по библиотеке (с 1.0.2)
+    ├── ITagRepository.cs               — репозиторий тегов (GetAll/GetByTrackId/Add/Update/Delete/AttachToTrack/DetachFromTrack) — с 1.0.3
     ├── ListeningStats.cs               — DTO топа прослушиваний (Track, PlayCount, LastPlayedUtc)
     └── IClock.cs                       — абстракция системного времени
 
@@ -99,10 +103,10 @@ MusicBakh.Infrastructure/
 ├── Persistence/
 │   ├── LibraryDbContext.cs             — EF Core DbContext
 │   ├── LibraryDbContextOptions.cs      — пути к SQLite-файлу
-│   ├── Entities/                       — EF-сущности (TrackEntity, ListeningHistoryEntryEntity, KeyValueEntryEntity)
+│   ├── Entities/                       — EF-сущности (TrackEntity, ListeningHistoryEntryEntity, KeyValueEntryEntity, TagEntity, TrackTagEntity)
 │   ├── Configurations/                 — IEntityTypeConfiguration для каждой таблицы
-│   ├── Repositories/                   — SqliteTrackRepository, SqliteListeningHistoryRepository, SqlitePlayerSettingsRepository
-│   └── Migrations/                     — AddLibrarySchema, AddListeningHistory, AddKeyValueStore, AddTrackAlbum, AddTracksFts
+│   ├── Repositories/                   — SqliteTrackRepository, SqliteListeningHistoryRepository, SqlitePlayerSettingsRepository, SqliteTagRepository
+│   └── Migrations/                     — AddLibrarySchema, AddListeningHistory, AddKeyValueStore, AddTrackAlbum, AddTracksFts, AddTrackRatingAndReaction, AddTagsAndTrackTags
 ├── Search/
 │   ├── FtsQueryBuilder.cs              — санитайзер пользовательской строки → FTS5 MATCH (с 1.0.2)
 │   └── SqliteFtsSearchService.cs       — реализация ISearchService поверх TracksFts (с 1.0.2)
@@ -123,9 +127,12 @@ MusicLibrary/
 ├── App.xaml(.cs)                       — DI-бутстрап, AppUserModelID, OnStartup
 ├── MainWindow.xaml(.cs)                — обработчики seek-слайдера, NativeWindowAppearance
 ├── NativeWindowAppearance.cs           — DWM dark caption/border/text color
+├── Controls/
+│   └── OverflowChipPanel.cs            — кастомный WPF Panel: чипы + пилюля «+ N ещё» (с 1.0.3)
 ├── ViewModels/
 │   ├── ViewModelBase.cs
-│   ├── MainViewModel.cs                — главный VM, все ICommand, SearchText (с 1.0.2)
+│   ├── MainViewModel.cs                — главный VM, все ICommand, SearchText (с 1.0.2), рейтинг/реакция/теги (с 1.0.3)
+│   ├── TagFilterItem.cs                — VM-обёртка тега в фильтр-toolbar (с 1.0.3)
 │   ├── AddTrackViewModel.cs
 │   └── StatsViewModel.cs               — топ/недавние/ни разу (с 1.0.2)
 ├── Views/
@@ -133,15 +140,19 @@ MusicLibrary/
 │   ├── ConfirmationDialogWindow.xaml(.cs)
 │   ├── ConfirmationDialogService.cs
 │   ├── StatsWindow.xaml(.cs)           — окно статистики, с 1.0.2
-│   └── StatsWindowService.cs           — фабрика открытия окна, с 1.0.2
+│   ├── StatsWindowService.cs           — фабрика открытия окна, с 1.0.2
+│   ├── TagsWindow.xaml(.cs)            — окно управления тегами, с 1.0.3
+│   └── TagsWindowService.cs            — фабрика открытия окна тегов, с 1.0.3
 ├── Services/
 │   ├── Playback/MediaPlayerAudioService.cs   — WPF MediaPlayer
 │   ├── Covers/ProceduralCoverGenerator.cs    — градиентная заглушка обложки
+│   ├── Library/LibraryFilter.cs              — pure-function фильтрация библиотеки (с 1.0.3)
+│   ├── Library/LibraryFilterCriteria.cs      — record-критерии фильтра (с 1.0.3)
 │   ├── Storage/                              — устаревшие JSON-адаптеры (не используются с 1.0.1)
 │   ├── Tracks/CompositeTrackRepository.cs    — объединяет встроенные и пользовательские
 │   └── Files/                               — OpenFileDialogService, SaveFileDialogService
 ├── Commands/RelayCommand.cs
-├── Converters/                         — IValueConverter для XAML
+├── Converters/                         — IValueConverter для XAML (с 1.0.3: RatingToStarsConverter, ReactionToIconConverter, TagsToChipsConverter, MinRatingActiveConverter и др.)
 ├── DependencyInjection/
 │   └── PresentationServiceCollectionExtensions.cs   — AddMusicBakhPresentation()
 ├── Resources/                          — XAML словари (Colors, Brushes, стили, иконки)
@@ -184,6 +195,8 @@ SQLite-файл создаётся автоматически при перво�
 | `AddKeyValueStore` | Таблица `KeyValueStore`: Key (PK), Value — используется для хранения настроек плеера |
 | `AddTrackAlbum` | Колонка `Tracks.Album TEXT NOT NULL DEFAULT ''` + индекс |
 | `AddTracksFts` | Виртуальная таблица `TracksFts USING fts5(Title, Artist, Album, Genre, content='Tracks')` + триггеры `Tracks_ai`/`Tracks_ad`/`Tracks_au AFTER UPDATE OF Title,Artist,Album,Genre` + backfill уже существующих треков |
+| `AddTrackRatingAndReaction` | Колонки `Tracks.Rating INTEGER NOT NULL DEFAULT 0` и `Tracks.Reaction INTEGER NOT NULL DEFAULT 0` — с 1.0.3 |
+| `AddTagsAndTrackTags` | Таблица `Tags` (Id, Name, Color) + связующая `TrackTags` (TrackId FK + TagId FK, составной PK, каскадное удаление) — с 1.0.3 |
 
 ### Полнотекстовый поиск (FTS5)
 
@@ -207,6 +220,53 @@ ORDER BY bm25(TracksFts) LIMIT @limit
 Admin-команды для ручной починки индекса (не выставлены в UI):
 - `INSERT INTO TracksFts(TracksFts) VALUES('rebuild');` — пересборка индекса из `Tracks`.
 - `INSERT INTO TracksFts(TracksFts) VALUES('optimize');` — компакция после массовых вставок/удалений.
+
+### Рейтинги и реакции (с 1.0.3)
+
+`Track.Rating` — целое число от 0 до 5 (0 означает «рейтинг не выставлен»). `Track.Reaction` — enum `TrackReaction` (None / Liked / Disliked). Оба поля хранятся в таблице `Tracks` и обновляются через `ITrackRepository.Update(Track)`.
+
+В UI рейтинг и реакция находятся в средней колонке под обложкой выбранного трека. Клик по N-й звезде выставляет рейтинг N; повторный клик по уже активной звезде сбрасывает рейтинг до 0. Лайк и дизлайк взаимоисключают друг друга; повторный клик сбрасывает реакцию в None.
+
+### Теги-ярлыки (с 1.0.3)
+
+`Tag` — доменная сущность с полями `Id` (int), `Name` (string, уникально в рамках библиотеки без учёта регистра), `Color` (string?, опциональный hex-цвет — пока не отображается на чипах). Связь «многие ко многим» между `Track` и `Tag` хранится в таблице `TrackTags` (составной PK + FK с каскадным удалением).
+
+`ITagRepository` (`MusicBakh.Core.Abstractions`) предоставляет методы:
+
+| Метод | Использование |
+|---|---|
+| `GetAll()` | Полный список тегов — список в TagsWindow и в popup фильтра |
+| `GetByTrackId(trackId)` | Теги конкретного трека — секция «Теги» в средней колонке |
+| `Add(tag)` | Создание нового тега в TagsWindow |
+| `Update(tag)` | Переименование тега в TagsWindow |
+| `Delete(id)` | Удаление тега и автоматическое открепление от всех треков (каскад) |
+| `AttachToTrack(trackId, tagId)` | Привязка тега к треку |
+| `DetachFromTrack(trackId, tagId)` | Открепление тега от трека |
+
+`SqliteTagRepository` реализует уникальность имени тега через in-code сравнение `.OrdinalIgnoreCase` — `COLLATE NOCASE` в SQLite не охватывает кириллицу.
+
+`MainViewModel` держит `_tagsByTrackId: Dictionary<int, ObservableCollection<Tag>>` — кэш связей тег/трек, обновляемый при attach/detach и при смене выбранного трека. Кэш используется для биндингов чипов на карточке трека без лишних запросов к БД при прокрутке.
+
+Окно «Теги» (`TagsWindow`) открывается командой `OpenTagsWindowCommand` (хоткей `Ctrl+G`) — немодальное, аналогично `StatsWindow`.
+
+### Фильтр-toolbar и LibraryFilter (с 1.0.3)
+
+Фильтрация библиотеки вынесена из `MainViewModel` в отдельный pure-function слой:
+
+- `LibraryFilterCriteria` — immutable record с полями: `SearchResults` (результаты FTS), `Genre` (string?), `Tags` (IReadOnlyList<int> — id активных тегов), `MinRating` (int 0..5), `Reaction` (TrackReaction?).
+- `LibraryFilter.Apply(allTracks, criteria)` — статический метод, возвращает `IReadOnlyList<Track>`. Не имеет побочных эффектов, полностью тестируем без WPF.
+
+`MainViewModel.ApplyFilters()` теперь строит `LibraryFilterCriteria` и делегирует фильтрацию `LibraryFilter.Apply`. Это первый шаг разгрузки ViewModel: в 1.0.4–1.0.8 планируется аналогично вынести Playback, History и Import.
+
+### Горизонтальный фильтр-toolbar и OverflowChipPanel (с 1.0.3)
+
+Вертикальная фильтр-секция в левой колонке заменена горизонтальным toolbar над списком треков. Toolbar содержит:
+- поле поиска;
+- ComboBox жанра;
+- чипы активных тегов через `OverflowChipPanel`;
+- кнопку ⋮, открывающую popup с фильтрами рейтинга и реакции.
+
+`OverflowChipPanel` — кастомный `Panel` (`MusicLibrary/Controls/OverflowChipPanel.cs`). В `MeasureOverride` считает суммарную ширину всех дочерних элементов плюс пилюли «+ N ещё». В `ArrangeOverride` располагает столько чипов, сколько помещается, затем добавляет пилюлю с остатком. Логика в code-behind (не в XAML) — потому что ItemsControl не позволяет разместить в одном контейнере и сгенерированные чипы, и статическую пилюлю-overflow как сиблинги.
 
 ### История прослушиваний
 
@@ -271,6 +331,15 @@ Admin-команды для ручной починки индекса (не в�
 | `ToggleMuteCommand` | Mute on/off |
 | `CycleRepeatModeCommand` | NoRepeat → Current → Library → … |
 | `SeekToCommand` | Перемотка на конкретную позицию |
+| `SetRatingCommand` | Выставить/сбросить рейтинг (0..5★) на выбранном треке — с 1.0.3 |
+| `SetReactionCommand` | Выставить/сбросить реакцию (Liked/Disliked) — с 1.0.3 |
+| `AttachTagCommand` | Привязать тег к выбранному треку — с 1.0.3 |
+| `DetachTagCommand` | Открепить тег от выбранного трека — с 1.0.3 |
+| `OpenTagsWindowCommand` | Открыть окно «Теги» (Ctrl+G) — с 1.0.3 |
+| `SetMinRatingCommand` | Установить фильтр «рейтинг не ниже N» в toolbar — с 1.0.3 |
+| `SetReactionFilterCommand` | Установить фильтр по реакции в toolbar — с 1.0.3 |
+| `ResetRatingReactionFilterCommand` | Сбросить фильтры рейтинга и реакции — с 1.0.3 |
+| `ToggleTagFilterCommand` | Переключить активность тег-чипа в toolbar — с 1.0.3 |
 
 ## Пайплайн импорта
 
@@ -322,14 +391,17 @@ SelectedTrack ─── PlayPauseCommand ──▶ MediaPlayerAudioService.Open(
 
 ## Тестирование
 
-Единственный тестовый проект — `MusicLibrary.Tests` (xUnit). По состоянию версии 1.0.2: **169 тестов** в обычном прогоне + **1 бенчмарк** под трейтом `Category=Benchmark`.
+Единственный тестовый проект — `MusicLibrary.Tests` (xUnit). По состоянию версии 1.0.3: **213 тестов** в обычном прогоне + **1 бенчмарк** под трейтом `Category=Benchmark`.
 
 - **SQLite-репозитории** (`SqliteTrackRepositoryTests`, `SqliteListeningHistoryRepositoryTests`, `SqlitePlayerSettingsRepositoryTests`) — работают поверх in-memory SQLite через [`InMemorySqliteDbContextFactory`](../MusicLibrary.Tests/TestSupport/InMemorySqliteDbContextFactory.cs) (`EnsureCreated` — обходит raw-SQL миграции).
 - **FTS5-поиск** (`SqliteFtsSearchServiceTests`, `FtsQueryBuilderTests`) — `FtsQueryBuilder` юнит-тестируется напрямую; интеграционные тесты `SqliteFtsSearchService` работают поверх [`MigratedSqliteDbContextFactory`](../MusicLibrary.Tests/TestSupport/MigratedSqliteDbContextFactory.cs), которая зовёт `Database.Migrate()` — единственный способ прогнать raw-SQL миграции (виртуальная таблица + триггеры) в тестах.
 - **Бенчмарк** (`SqliteFtsSearchServiceBenchmark`, `[Trait("Category", "Benchmark")]`) — сидит 50 000 случайных треков и проверяет средний поиск < 100 мс (DoD роадмапа 1.1.0). Запуск: `dotnet test --filter "Category=Benchmark"`. Обычный `dotnet test --filter "Category!=Benchmark"` его пропускает.
 - **Миграция данных** (`JsonToSqliteMigrationServiceTests`) — проверяет перенос записей из JSON в SQLite и переименование файла.
 - **Сидер** (`BuiltInTrackSeederTests`) — добавление в пустую БД, идемпотентность, refresh устаревших путей при переезде сборки (с 1.0.2).
-- **ViewModel** (`MainViewModelTests`) — покрывает логику `MainViewModel` через test doubles, без поднятия WPF; с 1.0.2 включает тесты `SearchText` + комбинация фильтров.
+- **ViewModel** (`MainViewModelTests`) — покрывает логику `MainViewModel` через test doubles, без поднятия WPF; с 1.0.2 включает тесты `SearchText` + комбинация фильтров; с 1.0.3 — тесты `SetMinRatingCommand`, команд рейтинга/реакции и bm25-порядка.
+- **Теги** (`SqliteTagRepositoryTests`) — attach/detach, уникальность имени с учётом кириллицы — с 1.0.3.
+- **OverflowChipPanel** (`OverflowChipPanelTests`) — измерение и раскладка чипов с overflow — с 1.0.3.
+- **LibraryFilter** (`LibraryFilterTests`) — чистые unit-тесты фильтрации по рейтингу, реакции, тегам и комбинациям — с 1.0.3.
 - **Сервисы** — `DefaultMetadataResolverTests`, `GenreNormalizerTests`, `PlaybackQueueStrategyTests`, `CompositeTrackRepositoryTests`, `FileServiceTests` и др.
 
 ## Внешний вид окна
@@ -343,7 +415,7 @@ SelectedTrack ─── PlayPauseCommand ──▶ MediaPlayerAudioService.Open(
 - `Colors.xaml`, `Brushes.xaml` — палитра.
 - `ButtonStyles.xaml`, `ComboBoxStyles.xaml`, `TextBoxStyles.xaml`, `TabStyles.xaml`, `SliderStyles.xaml`, `ScrollBarStyles.xaml`, `ListStyles.xaml` — переопределение системных контролов. `TextBoxStyles.xaml` и `TabStyles.xaml` появились в 1.0.2 ради поля поиска и таб-контрола в `StatsWindow`.
 - `PlayerIcons.xaml` — векторные иконки play/pause/skip/repeat/volume через `Geometry`.
-- `TrackTemplates.xaml` — `DataTemplate` для карточки трека в `ListBox` + три stats-шаблона (`StatsTopItemTemplate`, `StatsRecentItemTemplate`, `StatsNeverPlayedItemTemplate`).
+- `TrackTemplates.xaml` — `DataTemplate` для карточки трека в `ListBox` + три stats-шаблона (`StatsTopItemTemplate`, `StatsRecentItemTemplate`, `StatsNeverPlayedItemTemplate`). С 1.0.3 карточка трека содержит чипы тегов через `OverflowChipPanel`.
 
 ## Сборка
 
