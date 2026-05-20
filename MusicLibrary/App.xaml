@@ -13,6 +13,7 @@
                 <ResourceDictionary Source="Resources/ComboBoxStyles.xaml" />
                 <ResourceDictionary Source="Resources/TextBoxStyles.xaml" />
                 <ResourceDictionary Source="Resources/TabStyles.xaml" />
+                <ResourceDictionary Source="Resources/ToolbarStyles.xaml" />
                 <ResourceDictionary Source="Resources/TagChipStyles.xaml" />
                 <ResourceDictionary Source="Resources/ListStyles.xaml" />
                 <ResourceDictionary Source="Resources/PlayerIcons.xaml" />
