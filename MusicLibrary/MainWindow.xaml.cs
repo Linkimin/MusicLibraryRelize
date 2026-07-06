@@ -25,6 +25,13 @@ public partial class MainWindow : Window
         _viewModel.IsMuted = settings.IsMuted;
         _viewModel.RepeatMode = settings.RepeatMode;
 
+        // Гидратируем сохранённый активный режим левой колонки (треки/альбомы/исполнители).
+        int? savedView = playerSettingsRepository.LoadActiveViewIndex();
+        if (savedView.HasValue && Enum.IsDefined(typeof(MainViewMode), savedView.Value))
+        {
+            _viewModel.ActiveView = (MainViewMode)savedView.Value;
+        }
+
         DataContext = _viewModel;
     }
 

@@ -14,6 +14,7 @@ public sealed class SqlitePlayerSettingsRepository : IPlayerSettingsRepository
     private const string VolumeKey = "player.volume";
     private const string IsMutedKey = "player.isMuted";
     private const string RepeatModeKey = "player.repeatMode";
+    private const string ActiveViewKey = "active_view";
 
     private readonly Func<LibraryDbContext> _contextFactory;
 
@@ -39,6 +40,22 @@ public sealed class SqlitePlayerSettingsRepository : IPlayerSettingsRepository
         Upsert(ctx, VolumeKey, settings.Volume.ToString(CultureInfo.InvariantCulture));
         Upsert(ctx, IsMutedKey, settings.IsMuted ? "true" : "false");
         Upsert(ctx, RepeatModeKey, settings.RepeatMode.ToString());
+        ctx.SaveChanges();
+    }
+
+    /// <summary>Читает сохранённый индекс активного режима левой колонки (см. MainViewMode). null — ключа ещё нет.</summary>
+    public int? LoadActiveViewIndex()
+    {
+        using var ctx = _contextFactory();
+        var entry = ctx.KeyValueStore.FirstOrDefault(k => k.Key == ActiveViewKey);
+        return entry is null ? null : int.Parse(entry.Value, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Сохраняет активный режим левой колонки в KV-хранилище.</summary>
+    public void SaveActiveView(MainViewMode view)
+    {
+        using var ctx = _contextFactory();
+        Upsert(ctx, ActiveViewKey, ((int)view).ToString(CultureInfo.InvariantCulture));
         ctx.SaveChanges();
     }
 

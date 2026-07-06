@@ -173,5 +173,7 @@ public sealed class MainViewModelTagAttachTests
     {
         public PlayerSettings Load() => PlayerSettings.Default;
         public void Save(PlayerSettings settings) { }
+        public int? LoadActiveViewIndex() => null;
+        public void SaveActiveView(MainViewMode view) { }
     }
 }

@@ -42,6 +42,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private string _searchText = string.Empty;
     private int _minRating;
     private TrackReaction? _reactionFilter;
+    private MainViewMode _activeView = MainViewMode.Tracks;
+    private IReadOnlyList<AlbumAggregate> _displayedAlbums = Array.Empty<AlbumAggregate>();
+    private IReadOnlyList<ArtistAggregate> _displayedArtists = Array.Empty<ArtistAggregate>();
     private readonly Dictionary<int, ObservableCollection<Tag>> _tagsByTrackId = new();
     private readonly ObservableCollection<int> _selectedTagIds = new();
     private readonly ObservableCollection<TagFilterItem> _tagFilters = new();
@@ -100,6 +103,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
+        // Начальные агрегаты считаем от полного списка треков (фильтров ещё нет).
+        DisplayedAlbums = LibraryGroupingService.GroupByAlbum(_allTracks);
+        DisplayedArtists = LibraryGroupingService.GroupByArtist(_allTracks);
         PlaybackHistory = new ObservableCollection<PlaybackEntry>();
         Genres = new ObservableCollection<string>(
             new[] { AllGenres }
@@ -307,6 +313,47 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>Идентификаторы тегов, активных в фильтре (OR-семантика). UI добавляет/удаляет через эту коллекцию.</summary>
     public ObservableCollection<int> SelectedTagIds => _selectedTagIds;
+
+    /// <summary>Активный режим левой колонки (треки/альбомы/исполнители). Persisted в KeyValueStore.</summary>
+    public MainViewMode ActiveView
+    {
+        get => _activeView;
+        set
+        {
+            if (SetProperty(ref _activeView, value))
+            {
+                _playerSettingsRepository?.SaveActiveView(value);
+            }
+        }
+    }
+
+    /// <summary>Computed-проекция отфильтрованных треков по альбомам (см. LibraryGroupingService). Пересчитывается в ApplyFilters.</summary>
+    public IReadOnlyList<AlbumAggregate> DisplayedAlbums
+    {
+        get => _displayedAlbums;
+        private set
+        {
+            if (!ReferenceEquals(_displayedAlbums, value))
+            {
+                _displayedAlbums = value;
+                OnPropertyChanged(nameof(DisplayedAlbums));
+            }
+        }
+    }
+
+    /// <summary>Computed-проекция отфильтрованных треков по исполнителям (см. LibraryGroupingService). Пересчитывается в ApplyFilters.</summary>
+    public IReadOnlyList<ArtistAggregate> DisplayedArtists
+    {
+        get => _displayedArtists;
+        private set
+        {
+            if (!ReferenceEquals(_displayedArtists, value))
+            {
+                _displayedArtists = value;
+                OnPropertyChanged(nameof(DisplayedArtists));
+            }
+        }
+    }
 
     public Track? SelectedTrack
     {
@@ -761,6 +808,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             DisplayedTracks.Add(track);
         }
+
+        // Computed-агрегаты пересчитываются вместе с DisplayedTracks. На 50k треков ~50ms.
+        var filteredSnapshot = DisplayedTracks.ToList();
+        DisplayedAlbums = LibraryGroupingService.GroupByAlbum(filteredSnapshot);
+        DisplayedArtists = LibraryGroupingService.GroupByArtist(filteredSnapshot);
     }
 
     private void SkipBy(TimeSpan delta)
