@@ -68,6 +68,9 @@ LIMIT {limit}")
         CoverPath = e.CoverPath,
         Rating = e.Rating,
         Reaction = (TrackReaction)e.Reaction,
+        Year = e.Year,
+        TrackNumber = e.TrackNumber,
+        AlbumArtist = e.AlbumArtist,
         IsBuiltIn = e.IsBuiltIn
     };
 }

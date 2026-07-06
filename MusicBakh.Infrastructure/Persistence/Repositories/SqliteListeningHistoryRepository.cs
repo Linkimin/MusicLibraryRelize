@@ -159,6 +159,9 @@ public sealed class SqliteListeningHistoryRepository : IListeningHistoryReposito
         CoverPath = e.CoverPath,
         Rating = e.Rating,
         Reaction = (TrackReaction)e.Reaction,
+        Year = e.Year,
+        TrackNumber = e.TrackNumber,
+        AlbumArtist = e.AlbumArtist,
         // Критично: IsBuiltIn должен дотечь до UI. Иначе после перезапуска
         // history-replay вернёт встроенный трек с IsBuiltIn=false, и кнопка
         // «Удалить» активируется на shipped-файлы из install-папки.

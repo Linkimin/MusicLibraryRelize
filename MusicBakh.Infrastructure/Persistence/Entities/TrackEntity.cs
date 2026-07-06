@@ -21,4 +21,7 @@ internal sealed class TrackEntity
     public int Reaction { get; set; } // хранится как int; маппится в TrackReaction-enum в репозитории
     public DateTime AddedAtUtc { get; set; }
     public bool IsBuiltIn { get; set; }
+    public int? Year { get; set; }
+    public int? TrackNumber { get; set; }
+    public string? AlbumArtist { get; set; }
 }

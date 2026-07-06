@@ -29,6 +29,8 @@ internal sealed class TrackEntityConfiguration : IEntityTypeConfiguration<TrackE
         builder.HasIndex(t => t.Genre);
         builder.HasIndex(t => t.Rating);
         builder.HasIndex(t => t.Reaction);
+        builder.Property(t => t.AlbumArtist).HasMaxLength(500);
+        builder.HasIndex(t => t.Year);
         builder.HasIndex(t => t.IsBuiltIn);
     }
 }
