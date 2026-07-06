@@ -206,7 +206,7 @@ public sealed record AlbumAggregate(
     string CoverPath,        // обложка первого трека по Track.Id
     IReadOnlyList<Track> Tracks); // отсортированные по TrackNumber ASC NULLS LAST, Title ASC
 
-public string AlbumKey => $"{Artist}{Title}"; // уникальный ID для drill-down state
+public string AlbumKey => Artist + ((char)0x1F) + Title; // уникальный ID для drill-down state; разделитель U+001F исключает коллизии Artist+Title
 ```
 
 Сортировка `Tracks` внутри агрегата — детерминированная, в момент построения.

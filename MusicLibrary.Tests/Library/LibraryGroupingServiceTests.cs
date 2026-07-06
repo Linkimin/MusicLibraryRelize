@@ -212,4 +212,34 @@ public sealed class LibraryGroupingServiceTests
 
         Assert.Equal(new[] { "New", "Old", "Unknown" }, artist.Albums.Select(a => a.Title).ToArray());
     }
+
+    // === AlbumKey / loose-track семантика (согласование со спекой) ===
+
+    [Fact]
+    public void AlbumKey_Does_Not_Collide_On_Ambiguous_Artist_Title_Concatenation()
+    {
+        // Без разделителя "AB"+"C" == "A"+"BC". Разделитель U+001F исключает коллизию.
+        var albums = LibraryGroupingService.GroupByAlbum(new[]
+        {
+            T(1, "t1", "AB", "C"),
+            T(2, "t2", "A", "BC"),
+        });
+
+        var keys = albums.Select(a => a.AlbumKey).ToArray();
+        Assert.Equal(2, keys.Length);
+        Assert.NotEqual(keys[0], keys[1]);
+    }
+
+    [Fact]
+    public void GroupByArtist_Whitespace_Album_Is_Not_Loose()
+    {
+        // Loose = IsNullOrEmpty: пробельный Album — это альбом с пустым названием, не «прочий».
+        var artist = LibraryGroupingService.GroupByArtist(new[]
+        {
+            T(1, "t1", "X", " "),
+        }).Single();
+
+        Assert.Empty(artist.LooseTracks);
+        Assert.Single(artist.Albums);
+    }
 }

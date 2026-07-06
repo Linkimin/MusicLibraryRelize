@@ -72,9 +72,11 @@ public static class LibraryGroupingService
         foreach (var ag in byArtist)
         {
             // Треки этого артиста — отдельно те, что в альбомах, и те, что «прочие» (Album пустой).
-            var withAlbum = ag.Where(t => !string.IsNullOrWhiteSpace(t.Album)).ToList();
+            // Loose = IsNullOrEmpty (по спеке): пробельный Album считается заполненным (альбом
+            // с пустым названием), а не «прочим».
+            var withAlbum = ag.Where(t => !string.IsNullOrEmpty(t.Album)).ToList();
             var loose = ag
-                .Where(t => string.IsNullOrWhiteSpace(t.Album))
+                .Where(t => string.IsNullOrEmpty(t.Album))
                 .OrderBy(t => t.Title, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 

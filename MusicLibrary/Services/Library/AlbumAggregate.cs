@@ -12,7 +12,9 @@ public sealed record AlbumAggregate(
     string CoverPath,
     System.Collections.Generic.IReadOnlyList<Track> Tracks)
 {
-    public string AlbumKey => Artist + " " + Title;
+    // Разделитель U+001F (Unit Separator) не встречается в тегах ID3, поэтому
+    // ключ (Artist, Title) не коллизирует (например, "AB"+"C" != "A"+"BC").
+    public string AlbumKey => Artist + ((char)0x1F) + Title;
     public System.TimeSpan TotalDuration
     {
         get
