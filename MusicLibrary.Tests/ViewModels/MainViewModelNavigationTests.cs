@@ -118,6 +118,94 @@ public sealed class MainViewModelNavigationTests
         Assert.False(vm.CanGoBack);
     }
 
+    // === Task 6: PlayAlbum/PlayArtist/ShuffleAlbum/ShuffleArtist — сборка очереди воспроизведения ===
+
+    [Fact]
+    public void PlayAlbumCommand_Replaces_Queue_With_Album_Tracks_In_Order_And_Plays_First()
+    {
+        // Треки внутри альбома уже приходят от GroupByAlbum отсортированными
+        // (TrackNumber ASC NULLS LAST, Title ASC) — здесь намеренно перемешан
+        // порядок TrackNumber, чтобы убедиться, что VM не переупорядочивает очередь сама.
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "T1", Artist = "A", Album = "Alb", TrackNumber = 1, FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "T2", Artist = "A", Album = "Alb", TrackNumber = 2, FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "T3", Artist = "A", Album = "Alb", TrackNumber = 3, FilePath = "3.mp3" });
+        vm.SwitchViewCommand.Execute(MainViewMode.Albums);
+        var album = vm.DisplayedAlbums[0];
+
+        vm.PlayAlbumCommand.Execute(album);
+
+        Assert.Equal(album.Tracks.Select(t => t.Id), vm.DisplayedTracks.Select(t => t.Id));
+        Assert.Equal(album.Tracks[0].Id, vm.SelectedTrack?.Id);
+        Assert.Equal(album.Tracks[0].Id, vm.PlayingTrack?.Id);
+    }
+
+    [Fact]
+    public void PlayArtistCommand_Flattens_Albums_Then_Loose_Tracks_In_Order()
+    {
+        // Два альбома (сортируются Year DESC NULLS LAST, Title ASC -> "Beta" (2021) раньше "Alpha" (2020))
+        // и один loose-трек (Album пустой). Ожидаем: треки Beta, затем треки Alpha, затем loose.
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "A1", Artist = "Art", Album = "Alpha", Year = 2020, TrackNumber = 1, FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "A2", Artist = "Art", Album = "Alpha", Year = 2020, TrackNumber = 2, FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "B1", Artist = "Art", Album = "Beta", Year = 2021, TrackNumber = 1, FilePath = "3.mp3" },
+            new Track { Id = 4, Title = "B2", Artist = "Art", Album = "Beta", Year = 2021, TrackNumber = 2, FilePath = "4.mp3" },
+            new Track { Id = 5, Title = "Loose", Artist = "Art", Album = "", FilePath = "5.mp3" });
+        vm.SwitchViewCommand.Execute(MainViewMode.Artists);
+        var artist = vm.DisplayedArtists[0];
+
+        // Sanity: агрегат действительно содержит 2 альбома + 1 loose-трек, иначе тест ничего не проверяет.
+        Assert.Equal(2, artist.Albums.Count);
+        Assert.Single(artist.LooseTracks);
+
+        vm.PlayArtistCommand.Execute(artist);
+
+        var expectedOrder = artist.Albums.SelectMany(a => a.Tracks).Concat(artist.LooseTracks).Select(t => t.Id).ToList();
+        Assert.Equal(new[] { 3, 4, 1, 2, 5 }, expectedOrder);
+        Assert.Equal(expectedOrder, vm.DisplayedTracks.Select(t => t.Id));
+        Assert.Equal(expectedOrder[0], vm.SelectedTrack?.Id);
+        Assert.Equal(expectedOrder[0], vm.PlayingTrack?.Id);
+    }
+
+    [Fact]
+    public void ShuffleAlbumCommand_Preserves_Track_Set_Without_Drop_Or_Duplicate()
+    {
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "T1", Artist = "A", Album = "Alb", TrackNumber = 1, FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "T2", Artist = "A", Album = "Alb", TrackNumber = 2, FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "T3", Artist = "A", Album = "Alb", TrackNumber = 3, FilePath = "3.mp3" },
+            new Track { Id = 4, Title = "T4", Artist = "A", Album = "Alb", TrackNumber = 4, FilePath = "4.mp3" });
+        vm.SwitchViewCommand.Execute(MainViewMode.Albums);
+        var album = vm.DisplayedAlbums[0];
+
+        vm.ShuffleAlbumCommand.Execute(album);
+
+        // Порядок случаен (Fisher-Yates) — проверяем только сохранность множества: без потерь и дублей.
+        Assert.Equal(album.Tracks.Count, vm.DisplayedTracks.Count);
+        Assert.Equal(
+            album.Tracks.Select(t => t.Id).OrderBy(id => id),
+            vm.DisplayedTracks.Select(t => t.Id).OrderBy(id => id));
+        Assert.Contains(vm.DisplayedTracks, t => t.Id == vm.SelectedTrack!.Id);
+    }
+
+    [Fact]
+    public void ShuffleArtistCommand_Preserves_Track_Set_Across_Albums_And_Loose_Tracks()
+    {
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "A1", Artist = "Art", Album = "Alpha", Year = 2020, TrackNumber = 1, FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "A2", Artist = "Art", Album = "Alpha", Year = 2020, TrackNumber = 2, FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "B1", Artist = "Art", Album = "Beta", Year = 2021, TrackNumber = 1, FilePath = "3.mp3" },
+            new Track { Id = 4, Title = "Loose", Artist = "Art", Album = "", FilePath = "4.mp3" });
+        vm.SwitchViewCommand.Execute(MainViewMode.Artists);
+        var artist = vm.DisplayedArtists[0];
+        var expectedIds = artist.Albums.SelectMany(a => a.Tracks).Concat(artist.LooseTracks).Select(t => t.Id).OrderBy(id => id).ToList();
+
+        vm.ShuffleArtistCommand.Execute(artist);
+
+        Assert.Equal(expectedIds.Count, vm.DisplayedTracks.Count);
+        Assert.Equal(expectedIds, vm.DisplayedTracks.Select(t => t.Id).OrderBy(id => id));
+    }
+
     // === Фабрика VM и минимальные фейки (скопированы из MainViewModelTagAttachTests, т.к. там private) ===
 
     private sealed class FakeTrackRepo : ITrackRepository
