@@ -61,6 +61,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private double _volume = 1.0;
     private bool _isMuted;
     private bool _isSeeking;
+    private readonly Stack<LeftColumnState> _navStack = new();
+    private LeftColumnState _currentLeftColumn = new LeftColumnState.TracksRoot();
 
     public MainViewModel(
         ITrackRepository trackRepository,
@@ -190,6 +192,46 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         CycleRepeatModeCommand = new RelayCommand(_ => CycleRepeatMode());
         SeekToCommand = new RelayCommand(parameter => SeekTo(parameter as TimeSpan?), _ => PlayingTrack is not null);
 
+        // Навигация левой колонки: SwitchView сбрасывает back-стек и переустанавливает корень,
+        // OpenAlbum/OpenArtist пушат текущее состояние перед drill-down, Back — снимает верхнее.
+        SwitchViewCommand = new RelayCommand(p =>
+        {
+            if (p is not MainViewMode mode) return;
+            ActiveView = mode;
+            _navStack.Clear();
+            CurrentLeftColumn = mode switch
+            {
+                MainViewMode.Tracks => new LeftColumnState.TracksRoot(),
+                MainViewMode.Albums => new LeftColumnState.AlbumsRoot(),
+                MainViewMode.Artists => new LeftColumnState.ArtistsRoot(),
+                _ => new LeftColumnState.TracksRoot()
+            };
+            OnPropertyChanged(nameof(CanGoBack));
+        });
+
+        OpenAlbumCommand = new RelayCommand(p =>
+        {
+            if (p is not AlbumAggregate album) return;
+            _navStack.Push(_currentLeftColumn);
+            CurrentLeftColumn = new LeftColumnState.AlbumDetail(album);
+            OnPropertyChanged(nameof(CanGoBack));
+        });
+
+        OpenArtistCommand = new RelayCommand(p =>
+        {
+            if (p is not ArtistAggregate artist) return;
+            _navStack.Push(_currentLeftColumn);
+            CurrentLeftColumn = new LeftColumnState.ArtistDetail(artist);
+            OnPropertyChanged(nameof(CanGoBack));
+        });
+
+        BackCommand = new RelayCommand(_ =>
+        {
+            if (_navStack.Count == 0) return;
+            CurrentLeftColumn = _navStack.Pop();
+            OnPropertyChanged(nameof(CanGoBack));
+        }, _ => _navStack.Count > 0);
+
         _audioPlayerService.MediaOpened += (_, filePath) => HandleMediaOpened(filePath);
         _audioPlayerService.MediaEnded += (_, _) => HandleMediaEnded();
         _audioPlayerService.MediaFailed += (_, message) => HandleMediaFailed(message);
@@ -220,6 +262,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand SetMinRatingCommand { get; }
     public ICommand AttachTagToSelectedCommand { get; }
     public ICommand DetachTagFromSelectedCommand { get; }
+    public ICommand SwitchViewCommand { get; }
+    public ICommand OpenAlbumCommand { get; }
+    public ICommand OpenArtistCommand { get; }
+    public ICommand BackCommand { get; }
 
     /// <summary>Кэш тегов по треку. XAML-конвертер использует его для отображения чипов на карточке трека.</summary>
     public IReadOnlyDictionary<int, ObservableCollection<Tag>> TagsByTrackId => _tagsByTrackId;
@@ -354,6 +400,26 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             }
         }
     }
+
+    /// <summary>
+    /// Текущее состояние левой колонки (drill-down: root/album-detail/artist-detail).
+    /// Меняется командами SwitchView/OpenAlbum/OpenArtist/Back.
+    /// </summary>
+    public LeftColumnState CurrentLeftColumn
+    {
+        get => _currentLeftColumn;
+        private set
+        {
+            if (!Equals(_currentLeftColumn, value))
+            {
+                _currentLeftColumn = value;
+                OnPropertyChanged(nameof(CurrentLeftColumn));
+            }
+        }
+    }
+
+    /// <summary>Есть ли куда возвращаться по Back (back-стек непуст).</summary>
+    public bool CanGoBack => _navStack.Count > 0;
 
     public Track? SelectedTrack
     {
