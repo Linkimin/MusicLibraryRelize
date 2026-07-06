@@ -11,7 +11,8 @@
         MinWidth="980"
         MinHeight="640"
         FontFamily="{StaticResource BodyFont}"
-        Background="{StaticResource BackgroundBrush}">
+        Background="{StaticResource BackgroundBrush}"
+        KeyDown="Window_KeyDown">
     <Window.InputBindings>
         <KeyBinding Key="Space" Command="{Binding PlayPauseCommand}" />
         <!-- Все буквенные хоткеи — с Ctrl, чтобы не блокировать ввод этих букв
@@ -27,6 +28,22 @@
         <KeyBinding Key="Right" Modifiers="Shift"   Command="{Binding SkipForwardCommand}" />
         <KeyBinding Key="Left"  Modifiers="Control" Command="{Binding PreviousTrackCommand}" />
         <KeyBinding Key="Right" Modifiers="Control" Command="{Binding NextTrackCommand}" />
+        <!-- Ctrl+1/2/3 — переключение вкладок Треки/Альбомы/Исполнители (см. MainViewMode). -->
+        <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SwitchViewCommand}">
+            <KeyBinding.CommandParameter>
+                <x:Static Member="domain:MainViewMode.Tracks" />
+            </KeyBinding.CommandParameter>
+        </KeyBinding>
+        <KeyBinding Key="D2" Modifiers="Control" Command="{Binding SwitchViewCommand}">
+            <KeyBinding.CommandParameter>
+                <x:Static Member="domain:MainViewMode.Albums" />
+            </KeyBinding.CommandParameter>
+        </KeyBinding>
+        <KeyBinding Key="D3" Modifiers="Control" Command="{Binding SwitchViewCommand}">
+            <KeyBinding.CommandParameter>
+                <x:Static Member="domain:MainViewMode.Artists" />
+            </KeyBinding.CommandParameter>
+        </KeyBinding>
     </Window.InputBindings>
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Find" Executed="OnFindCommandExecuted" />

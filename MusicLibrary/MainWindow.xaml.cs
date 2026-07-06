@@ -61,6 +61,18 @@ public partial class MainWindow : Window
         }
     }
 
+    private void Window_KeyDown(object sender, KeyEventArgs e)
+    {
+        // Esc на уровне окна — drill-down back, но только если фокус НЕ в строке
+        // поиска: там Esc уже обрабатывается в OnSearchBoxKeyDown (очистка поиска)
+        // и выставляет e.Handled=true, так что сюда событие не дойдёт.
+        if (e.Key == Key.Escape && _viewModel.CanGoBack && !SearchBox.IsKeyboardFocusWithin)
+        {
+            _viewModel.BackCommand.Execute(null);
+            e.Handled = true;
+        }
+    }
+
     protected override void OnContentRendered(EventArgs e)
     {
         base.OnContentRendered(e);
