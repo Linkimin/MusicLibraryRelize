@@ -21,6 +21,14 @@ public sealed class TagLibSharpTagReader : ITagReader
             string genre = file.Tag.FirstGenre ?? string.Empty;
             TimeSpan duration = file.Properties?.Duration ?? TimeSpan.Zero;
 
+            uint year = file.Tag.Year;
+            uint trackNumber = file.Tag.Track;
+            string? albumArtist = file.Tag.FirstAlbumArtist;
+            if (string.IsNullOrWhiteSpace(albumArtist))
+            {
+                albumArtist = null;
+            }
+
             byte[]? coverBytes = null;
             string? mime = null;
             TagLib.IPicture? picture = file.Tag.Pictures.FirstOrDefault();
@@ -38,7 +46,10 @@ public sealed class TagLibSharpTagReader : ITagReader
                 Genre = genre,
                 Duration = duration,
                 CoverBytes = coverBytes,
-                CoverMimeType = mime
+                CoverMimeType = mime,
+                Year = year > 0 ? (int)year : (int?)null,
+                TrackNumber = trackNumber > 0 ? (int)trackNumber : (int?)null,
+                AlbumArtist = albumArtist
             };
         }
         catch (Exception)

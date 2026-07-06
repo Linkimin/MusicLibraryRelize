@@ -492,7 +492,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Duration = candidate.Duration,
             FilePath = candidate.AudioFilePath,
             CoverPath = candidate.CoverFilePath,
-            IsBuiltIn = false
+            IsBuiltIn = false,
+            Year = candidate.Year,
+            TrackNumber = candidate.TrackNumber,
+            AlbumArtist = candidate.AlbumArtist
         });
 
         AddTrack(saved);

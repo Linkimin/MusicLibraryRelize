@@ -106,7 +106,10 @@ public sealed class DefaultMetadataResolver : IMetadataResolver
             Genre = _genreNormalizer.Normalize(rawGenre),
             Duration = tag.Duration,
             CoverFromTag = tag.CoverBytes,
-            CoverMimeType = tag.CoverMimeType
+            CoverMimeType = tag.CoverMimeType,
+            Year = tag.Year,
+            TrackNumber = tag.TrackNumber,
+            AlbumArtist = tag.AlbumArtist
         };
     }
 
