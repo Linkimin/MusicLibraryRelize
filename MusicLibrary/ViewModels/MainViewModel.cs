@@ -591,7 +591,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         CoverPath = source.CoverPath,
         Rating = rating ?? source.Rating,
         Reaction = reaction ?? source.Reaction,
-        IsBuiltIn = source.IsBuiltIn
+        IsBuiltIn = source.IsBuiltIn,
+        Year = source.Year,
+        TrackNumber = source.TrackNumber,
+        AlbumArtist = source.AlbumArtist
     };
 
     private void UpdateSelectedTrack(Track updated)

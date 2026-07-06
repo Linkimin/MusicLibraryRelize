@@ -90,6 +90,38 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void SetRatingCommand_Preserves_Year_TrackNumber_AlbumArtist()
+    {
+        // Регрессия: CloneTrack в MainViewModel вручную реконструирует Track
+        // (sealed, init-only свойства, `with` недоступен) и не был обновлён
+        // при добавлении Year/TrackNumber/AlbumArtist в Task 1 итерации D.
+        // В результате простановка рейтинга обнуляла эти поля через Update.
+        var tracks = new[]
+        {
+            new Track
+            {
+                Id = 1,
+                Title = "T",
+                Artist = "A",
+                FilePath = "1.mp3",
+                Year = 1999,
+                TrackNumber = 7,
+                AlbumArtist = "Various Artists"
+            }
+        };
+        var trackRepo = new RecordingTrackRepository(tracks);
+        var viewModel = CreateViewModelWithRepo(trackRepo);
+        viewModel.SelectedTrack = viewModel.DisplayedTracks[0];
+
+        viewModel.SetRatingCommand.Execute("4");
+
+        Assert.Single(trackRepo.UpdateCalls);
+        Assert.Equal(1999, trackRepo.UpdateCalls[0].Year);
+        Assert.Equal(7, trackRepo.UpdateCalls[0].TrackNumber);
+        Assert.Equal("Various Artists", trackRepo.UpdateCalls[0].AlbumArtist);
+    }
+
+    [Fact]
     public void SetRatingCommand_Toggle_Same_Star_Resets_To_Zero()
     {
         var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3", Rating = 3 } };
