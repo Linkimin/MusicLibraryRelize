@@ -63,6 +63,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private bool _isSeeking;
     private readonly Stack<LeftColumnState> _navStack = new();
     private LeftColumnState _currentLeftColumn = new LeftColumnState.TracksRoot();
+    private static readonly System.Random _shuffleRng = new();
 
     public MainViewModel(
         ITrackRepository trackRepository,
@@ -232,6 +233,34 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(CanGoBack));
         }, _ => _navStack.Count > 0);
 
+        PlayAlbumCommand = new RelayCommand(p =>
+        {
+            if (p is not AlbumAggregate album || album.Tracks.Count == 0) return;
+            ReplaceQueueAndPlay(album.Tracks, shuffle: false);
+        });
+
+        ShuffleAlbumCommand = new RelayCommand(p =>
+        {
+            if (p is not AlbumAggregate album || album.Tracks.Count == 0) return;
+            ReplaceQueueAndPlay(album.Tracks, shuffle: true);
+        });
+
+        PlayArtistCommand = new RelayCommand(p =>
+        {
+            if (p is not ArtistAggregate artist) return;
+            var all = artist.Albums.SelectMany(a => a.Tracks).Concat(artist.LooseTracks).ToList();
+            if (all.Count == 0) return;
+            ReplaceQueueAndPlay(all, shuffle: false);
+        });
+
+        ShuffleArtistCommand = new RelayCommand(p =>
+        {
+            if (p is not ArtistAggregate artist) return;
+            var all = artist.Albums.SelectMany(a => a.Tracks).Concat(artist.LooseTracks).ToList();
+            if (all.Count == 0) return;
+            ReplaceQueueAndPlay(all, shuffle: true);
+        });
+
         _audioPlayerService.MediaOpened += (_, filePath) => HandleMediaOpened(filePath);
         _audioPlayerService.MediaEnded += (_, _) => HandleMediaEnded();
         _audioPlayerService.MediaFailed += (_, message) => HandleMediaFailed(message);
@@ -266,6 +295,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand OpenAlbumCommand { get; }
     public ICommand OpenArtistCommand { get; }
     public ICommand BackCommand { get; }
+    public ICommand PlayAlbumCommand { get; }
+    public ICommand ShuffleAlbumCommand { get; }
+    public ICommand PlayArtistCommand { get; }
+    public ICommand ShuffleArtistCommand { get; }
 
     /// <summary>Кэш тегов по треку. XAML-конвертер использует его для отображения чипов на карточке трека.</summary>
     public IReadOnlyDictionary<int, ObservableCollection<Tag>> TagsByTrackId => _tagsByTrackId;
@@ -985,6 +1018,28 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         StartOrResumeTrack(SelectedTrack);
+    }
+
+    private void ReplaceQueueAndPlay(System.Collections.Generic.IReadOnlyList<Track> tracks, bool shuffle)
+    {
+        var queue = tracks.ToList();
+        if (shuffle)
+        {
+            // Fisher-Yates на копии.
+            for (int i = queue.Count - 1; i > 0; i--)
+            {
+                int j = _shuffleRng.Next(i + 1);
+                (queue[i], queue[j]) = (queue[j], queue[i]);
+            }
+        }
+
+        // Заменяем DisplayedTracks этой очередью — текущая логика воспроизведения
+        // ходит по DisplayedTracks (см. PreviousTrackCommand/NextTrackCommand).
+        DisplayedTracks.Clear();
+        foreach (var t in queue) DisplayedTracks.Add(t);
+
+        SelectedTrack = queue[0];
+        PlayPauseCommand.Execute(null);
     }
 
     private void PlaySpecificTrack(Track? track)
