@@ -19,6 +19,7 @@
                 <ResourceDictionary Source="Resources/ListStyles.xaml" />
                 <ResourceDictionary Source="Resources/PlayerIcons.xaml" />
                 <ResourceDictionary Source="Resources/TrackTemplates.xaml" />
+                <ResourceDictionary Source="Resources/AlbumsArtistsTemplates.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <FontFamily x:Key="HeadingFont">Playfair Display, Georgia</FontFamily>
@@ -56,6 +57,8 @@
             <converters:TrackTagsFirstNMultiConverter x:Key="TrackTagsFirstNMultiConverter" />
             <converters:TrackTagsOverflowCountMultiConverter x:Key="TrackTagsOverflowCountMultiConverter" />
             <converters:TrackTagsOverflowVisibilityMultiConverter x:Key="TrackTagsOverflowVisibilityMultiConverter" />
+            <converters:FirstLetterConverter x:Key="FirstLetterConverter" />
+            <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         </ResourceDictionary>
