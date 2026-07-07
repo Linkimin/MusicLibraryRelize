@@ -242,4 +242,31 @@ public sealed class LibraryGroupingServiceTests
         Assert.Empty(artist.LooseTracks);
         Assert.Single(artist.Albums);
     }
+
+    [Fact]
+    public void GroupByAlbum_Excludes_Tracks_With_Empty_Album()
+    {
+        // Треки без тега Album не должны порождать фантомные альбомы с пустым названием.
+        var albums = LibraryGroupingService.GroupByAlbum(new[]
+        {
+            T(1, "t1", "Muse", ""),                 // без альбома → не альбом
+            T(2, "t2", "Sabaton", "Heroes"),        // с альбомом → альбом
+            T(3, "t3", "Twenty One Pilots", null!), // null альбом → не альбом
+        });
+
+        Assert.Single(albums);
+        Assert.Equal("Heroes", albums[0].Title);
+    }
+
+    [Fact]
+    public void GroupByAlbum_All_Empty_Albums_Returns_Empty()
+    {
+        var albums = LibraryGroupingService.GroupByAlbum(new[]
+        {
+            T(1, "t1", "Muse", ""),
+            T(2, "t2", "Sabaton", ""),
+        });
+
+        Assert.Empty(albums);
+    }
 }

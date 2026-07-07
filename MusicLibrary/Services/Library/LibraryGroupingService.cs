@@ -20,7 +20,16 @@ public static class LibraryGroupingService
             return Array.Empty<AlbumAggregate>();
         }
 
-        var groups = tracks
+        // Треки без тега Album — это не альбом (иначе каждый такой трек породил бы
+        // фантомный «альбом» с пустым названием). Во вкладке «Исполнители» они
+        // показываются как LooseTracks; в «Альбомах» их просто нет.
+        var withAlbum = tracks.Where(t => !string.IsNullOrEmpty(t.Album)).ToList();
+        if (withAlbum.Count == 0)
+        {
+            return Array.Empty<AlbumAggregate>();
+        }
+
+        var groups = withAlbum
             .GroupBy(t => (
                 Artist: string.IsNullOrWhiteSpace(t.AlbumArtist) ? t.Artist : t.AlbumArtist!,
                 Title: t.Album ?? string.Empty));

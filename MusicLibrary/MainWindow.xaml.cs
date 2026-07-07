@@ -25,12 +25,9 @@ public partial class MainWindow : Window
         _viewModel.IsMuted = settings.IsMuted;
         _viewModel.RepeatMode = settings.RepeatMode;
 
-        // Гидратируем сохранённый активный режим левой колонки (треки/альбомы/исполнители).
-        int? savedView = playerSettingsRepository.LoadActiveViewIndex();
-        if (savedView.HasValue && Enum.IsDefined(typeof(MainViewMode), savedView.Value))
-        {
-            _viewModel.ActiveView = (MainViewMode)savedView.Value;
-        }
+        // Активную вкладку сознательно НЕ восстанавливаем: приложение всегда стартует на
+        // «Треки» (продуктовое решение — предсказуемый дефолт вместо «где был в прошлый раз»).
+        // Персист active_view в KeyValueStore остаётся неиспользуемым — см. scope-deviations §1.0.4.
 
         DataContext = _viewModel;
     }
