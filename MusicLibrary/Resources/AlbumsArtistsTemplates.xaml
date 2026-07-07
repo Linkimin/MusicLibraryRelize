@@ -9,6 +9,9 @@
          XamlParseException «ресурс CountToVisibilityConverter не найден». -->
     <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
     <converters:FirstLetterConverter x:Key="FirstLetterConverter" />
+    <!-- Локально (MultiBinding.Converter резолвится при загрузке шаблона): подсветка
+         играющего трека в детали альбома/исполнителя сравнивает трек строки с PlayingTrack. -->
+    <converters:TrackIdentityMatchConverter x:Key="TrackIdentityMatchConverter" />
 
     <!-- ========== Tracks view: переиспользует существующий ListBox с TrackCardTemplate ========== -->
     <DataTemplate x:Key="TracksRootTemplate">
@@ -179,7 +182,7 @@
                          Style="{StaticResource PanelListBoxStyle}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="6,4" Cursor="Hand">
+                            <Grid x:Name="AlbumTrackRow" Margin="6,4" Cursor="Hand" Background="Transparent">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="30" />
                                     <ColumnDefinition Width="*" />
@@ -192,12 +195,26 @@
                                 </Grid.InputBindings>
                                 <TextBlock Grid.Column="0" Text="{Binding TrackNumber, TargetNullValue=''}"
                                            Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" />
-                                <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}"
+                                <TextBlock x:Name="AlbumTrackTitle" Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}"
                                            FontSize="13" TextTrimming="CharacterEllipsis" />
                                 <TextBlock Grid.Column="2" Text="{Binding DurationText}"
                                            Foreground="{StaticResource MutedForegroundBrush}" FontSize="11"
                                            Margin="8,0,0,0" />
                             </Grid>
+                            <DataTemplate.Triggers>
+                                <!-- Подсветка играющего трека (PlayingTrack берём с окна — DataContext детали = состояние). -->
+                                <DataTrigger Value="True">
+                                    <DataTrigger.Binding>
+                                        <MultiBinding Converter="{StaticResource TrackIdentityMatchConverter}">
+                                            <Binding />
+                                            <Binding RelativeSource="{RelativeSource AncestorType=Window}" Path="DataContext.PlayingTrack" />
+                                        </MultiBinding>
+                                    </DataTrigger.Binding>
+                                    <Setter TargetName="AlbumTrackRow" Property="Background" Value="#402A2018" />
+                                    <Setter TargetName="AlbumTrackTitle" Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                                    <Setter TargetName="AlbumTrackTitle" Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
@@ -274,7 +291,7 @@
                                       Visibility="{Binding Artist.LooseTracks.Count, Converter={StaticResource CountToVisibilityConverter}}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="6,4" Cursor="Hand">
+                                    <Grid x:Name="LooseTrackRow" Margin="6,4" Cursor="Hand" Background="Transparent">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
@@ -284,9 +301,23 @@
                                                           Command="{Binding DataContext.PlayDetailTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           CommandParameter="{Binding}" />
                                         </Grid.InputBindings>
-                                        <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock x:Name="LooseTrackTitle" Grid.Column="0" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}" FontSize="13" TextTrimming="CharacterEllipsis" />
                                         <TextBlock Grid.Column="1" Text="{Binding DurationText}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="11" Margin="8,0,0,0" />
                                     </Grid>
+                                    <DataTemplate.Triggers>
+                                        <!-- Подсветка играющего трека (см. album-detail: PlayingTrack с окна). -->
+                                        <DataTrigger Value="True">
+                                            <DataTrigger.Binding>
+                                                <MultiBinding Converter="{StaticResource TrackIdentityMatchConverter}">
+                                                    <Binding />
+                                                    <Binding RelativeSource="{RelativeSource AncestorType=Window}" Path="DataContext.PlayingTrack" />
+                                                </MultiBinding>
+                                            </DataTrigger.Binding>
+                                            <Setter TargetName="LooseTrackRow" Property="Background" Value="#402A2018" />
+                                            <Setter TargetName="LooseTrackTitle" Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                                            <Setter TargetName="LooseTrackTitle" Property="FontWeight" Value="SemiBold" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
