@@ -1,5 +1,14 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:converters="clr-namespace:MusicLibrary.Converters">
+
+    <!-- Конвертеры объявлены здесь локально: {StaticResource} внутри DataTemplate этого
+         merged-словаря резолвится при загрузке шаблона и НЕ видит ключей, объявленных прямыми
+         детьми Application.Resources после блока MergedDictionaries (тот же приём, что в
+         TrackTemplates.xaml). Без этого переключение на Albums/Artists падает с
+         XamlParseException «ресурс CountToVisibilityConverter не найден». -->
+    <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
+    <converters:FirstLetterConverter x:Key="FirstLetterConverter" />
 
     <!-- ========== Tracks view: переиспользует существующий ListBox с TrackCardTemplate ========== -->
     <DataTemplate x:Key="TracksRootTemplate">

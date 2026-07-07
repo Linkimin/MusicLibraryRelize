@@ -57,8 +57,6 @@
             <converters:TrackTagsFirstNMultiConverter x:Key="TrackTagsFirstNMultiConverter" />
             <converters:TrackTagsOverflowCountMultiConverter x:Key="TrackTagsOverflowCountMultiConverter" />
             <converters:TrackTagsOverflowVisibilityMultiConverter x:Key="TrackTagsOverflowVisibilityMultiConverter" />
-            <converters:FirstLetterConverter x:Key="FirstLetterConverter" />
-            <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         </ResourceDictionary>
