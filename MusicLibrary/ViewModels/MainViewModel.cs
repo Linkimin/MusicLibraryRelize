@@ -912,7 +912,43 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var filteredSnapshot = DisplayedTracks.ToList();
         DisplayedAlbums = LibraryGroupingService.GroupByAlbum(filteredSnapshot);
         DisplayedArtists = LibraryGroupingService.GroupByArtist(filteredSnapshot);
+
+        // Спека «Фильтр-семантика»: drill-down обязан уважать активные фильтры. Если пользователь
+        // сейчас смотрит детальную страницу альбома/исполнителя, переустанавливаем CurrentLeftColumn
+        // на свежий агрегат из только что пересчитанных DisplayedAlbums/DisplayedArtists — иначе
+        // деталь продолжит показывать треклист, снятый ДО смены фильтра. Root-состояния и back-стек
+        // не трогаем (ре-резолвим только видимую CurrentLeftColumn).
+        CurrentLeftColumn = _currentLeftColumn switch
+        {
+            LeftColumnState.AlbumDetail albumDetail => new LeftColumnState.AlbumDetail(
+                DisplayedAlbums.FirstOrDefault(a => a.AlbumKey == albumDetail.Album.AlbumKey)
+                    ?? EmptyAlbum(albumDetail.Album)),
+            LeftColumnState.ArtistDetail artistDetail => new LeftColumnState.ArtistDetail(
+                DisplayedArtists.FirstOrDefault(a => a.Name == artistDetail.Artist.Name)
+                    ?? EmptyArtist(artistDetail.Artist)),
+            _ => _currentLeftColumn
+        };
     }
+
+    /// <summary>
+    /// Строит «пустой» агрегат альбома, сохраняя identity (Title/Artist/Year/Cover) от последнего
+    /// известного состояния, но с пустым треклистом. Используется, когда активный фильтр убрал из
+    /// альбома все треки и GroupByAlbum его больше не возвращает — деталь-страница должна показать
+    /// header + empty-state, а не застрявший до-фильтра треклист.
+    /// </summary>
+    private static AlbumAggregate EmptyAlbum(AlbumAggregate previous) => previous with
+    {
+        Tracks = Array.Empty<Track>()
+    };
+
+    /// <summary>Аналог EmptyAlbum для исполнителя: сохраняет Name, обнуляет Albums/LooseTracks/счётчики.</summary>
+    private static ArtistAggregate EmptyArtist(ArtistAggregate previous) => previous with
+    {
+        Albums = Array.Empty<AlbumAggregate>(),
+        LooseTracks = Array.Empty<Track>(),
+        TotalTracks = 0,
+        TotalDuration = TimeSpan.Zero
+    };
 
     private void SkipBy(TimeSpan delta)
     {

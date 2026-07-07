@@ -44,16 +44,24 @@
     </DataTemplate>
 
     <DataTemplate x:Key="AlbumsRootTemplate">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding DataContext.DisplayedAlbums, RelativeSource={RelativeSource AncestorType=Window}}"
-                          ItemTemplate="{StaticResource AlbumTileTemplate}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <UniformGrid Columns="3" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-            </ItemsControl>
-        </ScrollViewer>
+        <Grid>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding DataContext.DisplayedAlbums, RelativeSource={RelativeSource AncestorType=Window}}"
+                              ItemTemplate="{StaticResource AlbumTileTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="3" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
+            <!-- Empty state: библиотека пуста или всё отфильтровано (спека §Альбомы). -->
+            <TextBlock Text="Альбомов пока нет — добавьте треки с заполненным тегом Album"
+                       Foreground="{StaticResource MutedForegroundBrush}" FontSize="13"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                       TextWrapping="Wrap" MaxWidth="360"
+                       Visibility="{Binding DataContext.DisplayedAlbums.Count, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource CountToVisibilityConverter}, ConverterParameter=Invert}" />
+        </Grid>
     </DataTemplate>
 
     <!-- ========== Artists view: вертикальный список ========== -->
@@ -89,16 +97,24 @@
     </DataTemplate>
 
     <DataTemplate x:Key="ArtistsRootTemplate">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding DataContext.DisplayedArtists, RelativeSource={RelativeSource AncestorType=Window}}"
-                          ItemTemplate="{StaticResource ArtistRowTemplate}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-            </ItemsControl>
-        </ScrollViewer>
+        <Grid>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding DataContext.DisplayedArtists, RelativeSource={RelativeSource AncestorType=Window}}"
+                              ItemTemplate="{StaticResource ArtistRowTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
+            <!-- Empty state: библиотека пуста или всё отфильтровано (спека §Исполнители). -->
+            <TextBlock Text="Исполнителей пока нет — добавьте треки с заполненным тегом Artist"
+                       Foreground="{StaticResource MutedForegroundBrush}" FontSize="13"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                       TextWrapping="Wrap" MaxWidth="360"
+                       Visibility="{Binding DataContext.DisplayedArtists.Count, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource CountToVisibilityConverter}, ConverterParameter=Invert}" />
+        </Grid>
     </DataTemplate>
 
     <!-- ========== AlbumDetail (внутри drill-down) ========== -->
@@ -144,29 +160,40 @@
                 </StackPanel>
             </Border>
 
-            <!-- Tracks list -->
-            <ListBox ItemsSource="{Binding Album.Tracks}"
-                     SelectedItem="{Binding DataContext.SelectedTrack, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
-                     Style="{StaticResource PanelListBoxStyle}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Margin="6,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="30" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding TrackNumber, TargetNullValue=''}"
-                                       Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" />
-                            <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}"
-                                       FontSize="13" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Grid.Column="2" Text="{Binding DurationText}"
-                                       Foreground="{StaticResource MutedForegroundBrush}" FontSize="11"
-                                       Margin="8,0,0,0" />
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+            <!-- Tracks list (+ empty-state, если активный фильтр не оставил в альбоме ни одного трека). -->
+            <Grid>
+                <ListBox ItemsSource="{Binding Album.Tracks}"
+                         SelectedItem="{Binding DataContext.SelectedTrack, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                         Style="{StaticResource PanelListBoxStyle}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="6,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="30" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding TrackNumber, TargetNullValue=''}"
+                                           Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" />
+                                <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}"
+                                           FontSize="13" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="2" Text="{Binding DurationText}"
+                                           Foreground="{StaticResource MutedForegroundBrush}" FontSize="11"
+                                           Margin="8,0,0,0" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <!-- Спека §Фильтр-семантика: drill-down, опустошённый активным фильтром, показывает
+                     empty-state вместо пустого/stale списка. MainViewModel.ApplyFilters ре-резолвит
+                     Album на «пустой» агрегат (та же identity, Tracks=[]), когда GroupByAlbum больше
+                     не находит альбом под текущим фильтром. -->
+                <TextBlock Text="Под фильтр не попало ни одного трека этого альбома"
+                           Foreground="{StaticResource MutedForegroundBrush}" FontSize="13"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="360"
+                           Visibility="{Binding Album.Tracks.Count, Converter={StaticResource CountToVisibilityConverter}, ConverterParameter=Invert}" />
+            </Grid>
         </DockPanel>
     </DataTemplate>
 
@@ -207,37 +234,46 @@
                 </StackPanel>
             </Border>
 
-            <!-- Scrollable content (Albums + LooseTracks) -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel>
-                    <TextBlock Text="Альбомы" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8" />
-                    <ItemsControl ItemsSource="{Binding Artist.Albums}" ItemTemplate="{StaticResource AlbumTileTemplate}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <UniformGrid Columns="3" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                    </ItemsControl>
+            <!-- Scrollable content (Albums + LooseTracks) + empty-state, если активный фильтр не
+                 оставил у исполнителя ни одного альбома/трека (см. AlbumDetailTemplate — тот же приём
+                 через MainViewModel.ApplyFilters, ре-резолвящий Artist на «пустой» агрегат). -->
+            <Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Альбомы" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8" />
+                        <ItemsControl ItemsSource="{Binding Artist.Albums}" ItemTemplate="{StaticResource AlbumTileTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="3" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
 
-                    <TextBlock Text="Прочие треки" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" FontSize="13" Margin="0,12,0,8"
-                               Visibility="{Binding Artist.LooseTracks.Count, Converter={StaticResource CountToVisibilityConverter}}" />
-                    <ItemsControl ItemsSource="{Binding Artist.LooseTracks}"
-                                  Visibility="{Binding Artist.LooseTracks.Count, Converter={StaticResource CountToVisibilityConverter}}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="6,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}" FontSize="13" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="1" Text="{Binding DurationText}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="11" Margin="8,0,0,0" />
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </ScrollViewer>
+                        <TextBlock Text="Прочие треки" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" FontSize="13" Margin="0,12,0,8"
+                                   Visibility="{Binding Artist.LooseTracks.Count, Converter={StaticResource CountToVisibilityConverter}}" />
+                        <ItemsControl ItemsSource="{Binding Artist.LooseTracks}"
+                                      Visibility="{Binding Artist.LooseTracks.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="6,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="1" Text="{Binding DurationText}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="11" Margin="8,0,0,0" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+                <TextBlock Text="Под фильтр не попало ни одного трека этого исполнителя"
+                           Foreground="{StaticResource MutedForegroundBrush}" FontSize="13"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="360"
+                           Visibility="{Binding Artist.TotalTracks, Converter={StaticResource CountToVisibilityConverter}, ConverterParameter=Invert}" />
+            </Grid>
         </DockPanel>
     </DataTemplate>
 

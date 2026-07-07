@@ -59,7 +59,12 @@ public sealed class MainViewModelNavigationTests
         vm.OpenAlbumCommand.Execute(album);
 
         var detail = Assert.IsType<LeftColumnState.AlbumDetail>(vm.CurrentLeftColumn);
-        Assert.Same(album, detail.Album);
+        // Примечание: НЕ Assert.Same. ApplyFilters (вызванный внутри конструктора/сеттеров фильтров)
+        // не пересоздаёт CurrentLeftColumn при отсутствии реальных изменений фильтра, но контракт теперь —
+        // «AlbumKey совпадает», а не «та же самая ссылка на объект»: см. Task «drill-down respects filters»,
+        // где ApplyFilters ре-резолвит CurrentLeftColumn на свежий агрегат из DisplayedAlbums.
+        Assert.Equal(album.AlbumKey, detail.Album.AlbumKey);
+        Assert.Equal(album.Tracks.Select(t => t.Id), detail.Album.Tracks.Select(t => t.Id));
         Assert.True(vm.CanGoBack);
     }
 
@@ -116,6 +121,80 @@ public sealed class MainViewModelNavigationTests
 
         Assert.IsType<LeftColumnState.TracksRoot>(vm.CurrentLeftColumn);
         Assert.False(vm.CanGoBack);
+    }
+
+    // === Final-review fix: drill-down уважает активные фильтры (ApplyFilters ре-резолвит CurrentLeftColumn) ===
+
+    [Fact]
+    public void ApplyFilters_While_Drilled_Into_Album_Refreshes_Tracklist_To_Filtered_Subset()
+    {
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "T1", Artist = "A", Album = "Alb", FilePath = "1.mp3", Rating = 5 },
+            new Track { Id = 2, Title = "T2", Artist = "A", Album = "Alb", FilePath = "2.mp3", Rating = 1 },
+            new Track { Id = 3, Title = "T3", Artist = "A", Album = "Alb", FilePath = "3.mp3", Rating = 5 });
+        vm.SwitchViewCommand.Execute(MainViewMode.Albums);
+        var album = vm.DisplayedAlbums[0];
+        vm.OpenAlbumCommand.Execute(album);
+        Assert.Equal(3, ((LeftColumnState.AlbumDetail)vm.CurrentLeftColumn).Album.Tracks.Count);
+
+        // Фильтр «рейтинг >= 5» оставляет 2 из 3 треков альбома.
+        vm.MinRating = 5;
+
+        var detail = Assert.IsType<LeftColumnState.AlbumDetail>(vm.CurrentLeftColumn);
+        Assert.Equal(album.AlbumKey, detail.Album.AlbumKey);
+        Assert.Equal(new[] { 1, 3 }, detail.Album.Tracks.Select(t => t.Id));
+        Assert.True(vm.CanGoBack, "Back-стек не должен сбрасываться при пересчёте фильтра.");
+    }
+
+    [Fact]
+    public void ApplyFilters_That_Empties_Drilled_Album_Shows_Empty_Tracklist_Not_Stale()
+    {
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "T1", Artist = "A", Album = "Alb", FilePath = "1.mp3", Rating = 1 },
+            new Track { Id = 2, Title = "T2", Artist = "A", Album = "Alb", FilePath = "2.mp3", Rating = 1 });
+        vm.SwitchViewCommand.Execute(MainViewMode.Albums);
+        var album = vm.DisplayedAlbums[0];
+        vm.OpenAlbumCommand.Execute(album);
+
+        // Фильтр «рейтинг >= 5» убирает из альбома все треки -> GroupByAlbum больше не вернёт этот альбом.
+        var exception = Record.Exception(() => vm.MinRating = 5);
+
+        Assert.Null(exception);
+        var detail = Assert.IsType<LeftColumnState.AlbumDetail>(vm.CurrentLeftColumn);
+        // Identity (заголовок) сохранена от последнего известного агрегата, треклист пуст — не stale.
+        Assert.Equal(album.AlbumKey, detail.Album.AlbumKey);
+        Assert.Empty(detail.Album.Tracks);
+        Assert.DoesNotContain(vm.DisplayedAlbums, a => a.AlbumKey == album.AlbumKey);
+    }
+
+    [Fact]
+    public void ApplyFilters_While_Drilled_Into_Artist_Refreshes_Or_Empties_Detail()
+    {
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "T1", Artist = "Art", Album = "Alb", FilePath = "1.mp3", Rating = 5 },
+            new Track { Id = 2, Title = "T2", Artist = "Art", Album = "Alb", FilePath = "2.mp3", Rating = 1 });
+        vm.SwitchViewCommand.Execute(MainViewMode.Artists);
+        var artist = vm.DisplayedArtists[0];
+        vm.OpenArtistCommand.Execute(artist);
+        Assert.Equal(2, ((LeftColumnState.ArtistDetail)vm.CurrentLeftColumn).Artist.TotalTracks);
+
+        // Фильтр «рейтинг >= 5» оставляет только один трек у исполнителя.
+        vm.MinRating = 5;
+
+        var detail = Assert.IsType<LeftColumnState.ArtistDetail>(vm.CurrentLeftColumn);
+        Assert.Equal(artist.Name, detail.Artist.Name);
+        Assert.Equal(1, detail.Artist.TotalTracks);
+        Assert.True(vm.CanGoBack);
+
+        // Фильтр «рейтинг >= 6» (clamped до 5) — используем None-реакцию, чтобы дополнительно
+        // проверить полностью опустошённый случай: снимаем оставшийся трек через реакцию.
+        vm.ReactionFilter = TrackReaction.Liked; // ни у одного трека нет Liked -> исполнитель пропадает из DisplayedArtists
+        var emptied = Assert.IsType<LeftColumnState.ArtistDetail>(vm.CurrentLeftColumn);
+        Assert.Equal(artist.Name, emptied.Artist.Name);
+        Assert.Empty(emptied.Artist.Albums);
+        Assert.Empty(emptied.Artist.LooseTracks);
+        Assert.Equal(0, emptied.Artist.TotalTracks);
+        Assert.DoesNotContain(vm.DisplayedArtists, a => a.Name == artist.Name);
     }
 
     // === Task 6: PlayAlbum/PlayArtist/ShuffleAlbum/ShuffleArtist — сборка очереди воспроизведения ===
