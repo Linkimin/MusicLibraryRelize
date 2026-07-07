@@ -170,6 +170,8 @@
             </Border>
 
             <!-- Tracks list (+ empty-state, если активный фильтр не оставил в альбоме ни одного трека). -->
+            <!-- Двойной клик по строке — PlayDetailTrackCommand (bug #4 fix): очередь строится из
+                 Album.Tracks текущей открытой детали, а не из DisplayedTracks (вкладка «Треки»). -->
             <Grid>
                 <ListBox ItemsSource="{Binding Album.Tracks}"
                          SelectedItem="{Binding DataContext.SelectedTrack, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
@@ -177,12 +179,17 @@
                          Style="{StaticResource PanelListBoxStyle}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="6,4">
+                            <Grid Margin="6,4" Cursor="Hand">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="30" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
+                                <Grid.InputBindings>
+                                    <MouseBinding MouseAction="LeftDoubleClick"
+                                                  Command="{Binding DataContext.PlayDetailTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  CommandParameter="{Binding}" />
+                                </Grid.InputBindings>
                                 <TextBlock Grid.Column="0" Text="{Binding TrackNumber, TargetNullValue=''}"
                                            Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" />
                                 <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}"
@@ -261,15 +268,22 @@
 
                         <TextBlock Text="Прочие треки" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" FontSize="13" Margin="0,12,0,8"
                                    Visibility="{Binding Artist.LooseTracks.Count, Converter={StaticResource CountToVisibilityConverter}}" />
+                        <!-- Двойной клик по строке — PlayDetailTrackCommand (bug #4 fix): очередь = Artist.LooseTracks
+                             текущей открытой детали исполнителя, не DisplayedTracks. -->
                         <ItemsControl ItemsSource="{Binding Artist.LooseTracks}"
                                       Visibility="{Binding Artist.LooseTracks.Count, Converter={StaticResource CountToVisibilityConverter}}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="6,4">
+                                    <Grid Margin="6,4" Cursor="Hand">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
+                                        <Grid.InputBindings>
+                                            <MouseBinding MouseAction="LeftDoubleClick"
+                                                          Command="{Binding DataContext.PlayDetailTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          CommandParameter="{Binding}" />
+                                        </Grid.InputBindings>
                                         <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}" FontSize="13" TextTrimming="CharacterEllipsis" />
                                         <TextBlock Grid.Column="1" Text="{Binding DurationText}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="11" Margin="8,0,0,0" />
                                     </Grid>

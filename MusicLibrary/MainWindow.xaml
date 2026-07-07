@@ -359,23 +359,28 @@
                             </Style>
                         </StackPanel.Resources>
 
+                        <!-- Обложка/название/исполнитель/жанр/длительность биндятся на NowPlayingTrack
+                             (= PlayingTrack ?? SelectedTrack), а не на SelectedTrack напрямую: играющий
+                             трек может не входить в DisplayedTracks (после Play-альбома), тогда TwoWay
+                             SelectedItem-биндинг ListBox-а вкладки «Треки» обнулит SelectedTrack, и эта
+                             панель раньше гасла (bug #6 fix). -->
                         <Border Width="176" Height="176" CornerRadius="16" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="2" HorizontalAlignment="Center">
                             <Border.Background>
-                                <ImageBrush ImageSource="{Binding SelectedTrack.CoverPath}" Stretch="UniformToFill" />
+                                <ImageBrush ImageSource="{Binding NowPlayingTrack.CoverPath}" Stretch="UniformToFill" />
                             </Border.Background>
                             <Border.Effect>
                                 <DropShadowEffect Color="#D4A574" BlurRadius="35" ShadowDepth="0" Opacity="0.22" />
                             </Border.Effect>
                         </Border>
 
-                        <TextBlock Text="{Binding SelectedTrack.Title, TargetNullValue='Выберите трек'}" Foreground="{StaticResource ForegroundBrush}" FontSize="21" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" Margin="0,20,0,6" />
-                        <TextBlock Text="{Binding SelectedTrack.Artist}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="15" TextAlignment="Center" />
+                        <TextBlock Text="{Binding NowPlayingTrack.Title, TargetNullValue='Выберите трек'}" Foreground="{StaticResource ForegroundBrush}" FontSize="21" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" Margin="0,20,0,6" />
+                        <TextBlock Text="{Binding NowPlayingTrack.Artist}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="15" TextAlignment="Center" />
 
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,12">
                             <Border Background="#1AD4A574" BorderBrush="{StaticResource GoldBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12,5">
-                                <TextBlock Text="{Binding SelectedTrack.Genre}" Foreground="{StaticResource PrimaryBrush}" />
+                                <TextBlock Text="{Binding NowPlayingTrack.Genre}" Foreground="{StaticResource PrimaryBrush}" />
                             </Border>
-                            <TextBlock Text="{Binding SelectedTrack.DurationText}" Foreground="{StaticResource MutedForegroundBrush}" Margin="12,5,0,0" />
+                            <TextBlock Text="{Binding NowPlayingTrack.DurationText}" Foreground="{StaticResource MutedForegroundBrush}" Margin="12,5,0,0" />
                         </StackPanel>
 
                         <!-- Рейтинг + реакция: видимы только когда выбран трек. -->

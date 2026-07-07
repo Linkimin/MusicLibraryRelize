@@ -12,11 +12,17 @@ public sealed class MainViewModelNavigationTests
 {
     private static MainViewModel CreateVM(params Track[] tracks)
     {
+        return CreateVMWithPlayer(out _, tracks);
+    }
+
+    private static MainViewModel CreateVMWithPlayer(out FakeAudioPlayerService player, params Track[] tracks)
+    {
+        player = new FakeAudioPlayerService();
         return new MainViewModel(
             new FakeTrackRepo(tracks),
             new FakeFileService(),
             new FakeSaveFileDialogService(),
-            new FakeAudioPlayerService(),
+            player,
             new FakeListeningHistoryRepository(),
             new FakePlayerSettingsRepository(),
             addTrackDialogService: null,
@@ -214,9 +220,135 @@ public sealed class MainViewModelNavigationTests
 
         vm.PlayAlbumCommand.Execute(album);
 
-        Assert.Equal(album.Tracks.Select(t => t.Id), vm.DisplayedTracks.Select(t => t.Id));
+        // PlaybackQueue — очередь воспроизведения альбома; DisplayedTracks (вкладка «Треки») не трогается (bug #5 fix).
+        Assert.Equal(album.Tracks.Select(t => t.Id), vm.PlaybackQueue.Select(t => t.Id));
         Assert.Equal(album.Tracks[0].Id, vm.SelectedTrack?.Id);
         Assert.Equal(album.Tracks[0].Id, vm.PlayingTrack?.Id);
+    }
+
+    // === Smoke-fix: separate playback queue from Tracks view (bug #5) ===
+
+    [Fact]
+    public void PlayAlbumCommand_Leaves_DisplayedTracks_As_Full_Library_While_Queue_Is_Album()
+    {
+        // Регрессия smoke-теста итерации D: Play-альбом раньше клал треки альбома прямо
+        // в DisplayedTracks, из-за чего вкладка «Треки» «схлопывалась» до одного альбома.
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "T1", Artist = "A", Album = "Alb", TrackNumber = 1, FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "T2", Artist = "A", Album = "Alb", TrackNumber = 2, FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "Other", Artist = "B", Album = "OtherAlb", TrackNumber = 1, FilePath = "3.mp3" });
+        var fullLibraryIds = new[] { 1, 2, 3 };
+        vm.SwitchViewCommand.Execute(MainViewMode.Albums);
+        var album = vm.DisplayedAlbums.Single(a => a.Title == "Alb");
+
+        vm.PlayAlbumCommand.Execute(album);
+
+        Assert.Equal(fullLibraryIds, vm.DisplayedTracks.Select(t => t.Id).OrderBy(id => id));
+        Assert.Equal(new[] { 1, 2 }, vm.PlaybackQueue.Select(t => t.Id));
+    }
+
+    [Fact]
+    public void NextTrackCommand_After_PlayAlbum_Advances_Within_Album_Queue_Not_Library()
+    {
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "T1", Artist = "A", Album = "Alb", TrackNumber = 1, FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "T2", Artist = "A", Album = "Alb", TrackNumber = 2, FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "Other", Artist = "B", Album = "OtherAlb", TrackNumber = 1, FilePath = "3.mp3" });
+        vm.SwitchViewCommand.Execute(MainViewMode.Albums);
+        var album = vm.DisplayedAlbums.Single(a => a.Title == "Alb");
+        vm.PlayAlbumCommand.Execute(album);
+        Assert.Equal(1, vm.PlayingTrack?.Id);
+
+        vm.NextTrackCommand.Execute(null);
+        Assert.Equal(2, vm.PlayingTrack?.Id);
+
+        // Очередь альбома исчерпана (только 2 трека) — дальше идти некуда, трек #3
+        // из другого альбома НЕ должен подхватиться (это и было бы багом #5/навигация по DisplayedTracks).
+        Assert.False(vm.NextTrackCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void Normal_Play_From_Tracks_View_Snapshots_DisplayedTracks_Into_Queue_And_Walks_It()
+    {
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "T1", Artist = "A", Album = "Alb", FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "T2", Artist = "A", Album = "Alb", FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "T3", Artist = "A", Album = "Alb", FilePath = "3.mp3" });
+
+        vm.PlayTrackCommand.Execute(vm.DisplayedTracks[0]);
+
+        Assert.Equal(vm.DisplayedTracks.Select(t => t.Id), vm.PlaybackQueue.Select(t => t.Id));
+
+        vm.NextTrackCommand.Execute(null);
+        Assert.Equal(vm.DisplayedTracks[1].Id, vm.PlayingTrack?.Id);
+
+        vm.PreviousTrackCommand.Execute(null);
+        Assert.Equal(vm.DisplayedTracks[0].Id, vm.PlayingTrack?.Id);
+    }
+
+    [Fact]
+    public void PlayDetailTrackCommand_In_AlbumDetail_Queues_Album_And_Plays_Clicked_Track()
+    {
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "T1", Artist = "A", Album = "Alb", TrackNumber = 1, FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "T2", Artist = "A", Album = "Alb", TrackNumber = 2, FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "T3", Artist = "A", Album = "Alb", TrackNumber = 3, FilePath = "3.mp3" });
+        vm.SwitchViewCommand.Execute(MainViewMode.Albums);
+        var album = vm.DisplayedAlbums[0];
+        vm.OpenAlbumCommand.Execute(album);
+        var detail = (LeftColumnState.AlbumDetail)vm.CurrentLeftColumn;
+        Track clicked = detail.Album.Tracks[1]; // T2 — не первый трек альбома.
+
+        vm.PlayDetailTrackCommand.Execute(clicked);
+
+        Assert.Equal(clicked.Id, vm.SelectedTrack?.Id);
+        Assert.Equal(clicked.Id, vm.PlayingTrack?.Id);
+        Assert.Equal(album.Tracks.Select(t => t.Id), vm.PlaybackQueue.Select(t => t.Id));
+        // DisplayedTracks (вкладка «Треки») не тронута.
+        Assert.Equal(3, vm.DisplayedTracks.Count);
+    }
+
+    [Fact]
+    public void PlayDetailTrackCommand_In_ArtistDetail_Queues_LooseTracks_And_Plays_Clicked_Track()
+    {
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "Loose1", Artist = "Art", Album = "", FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "Loose2", Artist = "Art", Album = "", FilePath = "2.mp3" });
+        vm.SwitchViewCommand.Execute(MainViewMode.Artists);
+        var artist = vm.DisplayedArtists[0];
+        vm.OpenArtistCommand.Execute(artist);
+        var detail = (LeftColumnState.ArtistDetail)vm.CurrentLeftColumn;
+        Track clicked = detail.Artist.LooseTracks[1];
+
+        vm.PlayDetailTrackCommand.Execute(clicked);
+
+        Assert.Equal(clicked.Id, vm.SelectedTrack?.Id);
+        Assert.Equal(clicked.Id, vm.PlayingTrack?.Id);
+        Assert.Equal(artist.LooseTracks.Select(t => t.Id), vm.PlaybackQueue.Select(t => t.Id));
+    }
+
+    [Fact]
+    public void NowPlayingTrack_Falls_Back_To_PlayingTrack_When_Not_In_DisplayedTracks()
+    {
+        // Регрессия bug #6: после Play-альбома играющий трек может выпасть из DisplayedTracks
+        // (вкладка «Треки» отфильтрована на другой жанр/альбом) — SelectedTrack тогда обнуляется
+        // TwoWay-биндингом ListBox-а, но средняя панель обязана продолжать показывать играющий трек.
+        var vm = CreateVM(
+            new Track { Id = 1, Title = "T1", Artist = "A", Album = "Alb", TrackNumber = 1, FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "T2", Artist = "A", Album = "Alb", TrackNumber = 2, FilePath = "2.mp3" });
+        vm.SwitchViewCommand.Execute(MainViewMode.Albums);
+        var album = vm.DisplayedAlbums[0];
+        vm.PlayAlbumCommand.Execute(album);
+        Assert.NotNull(vm.PlayingTrack);
+
+        // Симулируем то, что делает WPF ListBox.SelectedItem (TwoWay), когда PlayingTrack
+        // больше не входит в текущий ItemsSource DisplayedTracks: SelectedTrack становится null.
+        vm.SelectedTrack = null;
+
+        Assert.Null(vm.SelectedTrack);
+        Assert.NotNull(vm.PlayingTrack);
+        Assert.Equal(vm.PlayingTrack, vm.NowPlayingTrack);
+        Assert.True(vm.HasNowPlayingTrack);
     }
 
     [Fact]
@@ -241,7 +373,8 @@ public sealed class MainViewModelNavigationTests
 
         var expectedOrder = artist.Albums.SelectMany(a => a.Tracks).Concat(artist.LooseTracks).Select(t => t.Id).ToList();
         Assert.Equal(new[] { 3, 4, 1, 2, 5 }, expectedOrder);
-        Assert.Equal(expectedOrder, vm.DisplayedTracks.Select(t => t.Id));
+        // PlaybackQueue — очередь исполнителя; DisplayedTracks (вкладка «Треки») не трогается (bug #5 fix).
+        Assert.Equal(expectedOrder, vm.PlaybackQueue.Select(t => t.Id));
         Assert.Equal(expectedOrder[0], vm.SelectedTrack?.Id);
         Assert.Equal(expectedOrder[0], vm.PlayingTrack?.Id);
     }
@@ -260,11 +393,12 @@ public sealed class MainViewModelNavigationTests
         vm.ShuffleAlbumCommand.Execute(album);
 
         // Порядок случаен (Fisher-Yates) — проверяем только сохранность множества: без потерь и дублей.
-        Assert.Equal(album.Tracks.Count, vm.DisplayedTracks.Count);
+        // PlaybackQueue — очередь альбома; DisplayedTracks (вкладка «Треки») не трогается (bug #5 fix).
+        Assert.Equal(album.Tracks.Count, vm.PlaybackQueue.Count);
         Assert.Equal(
             album.Tracks.Select(t => t.Id).OrderBy(id => id),
-            vm.DisplayedTracks.Select(t => t.Id).OrderBy(id => id));
-        Assert.Contains(vm.DisplayedTracks, t => t.Id == vm.SelectedTrack!.Id);
+            vm.PlaybackQueue.Select(t => t.Id).OrderBy(id => id));
+        Assert.Contains(vm.PlaybackQueue, t => t.Id == vm.SelectedTrack!.Id);
     }
 
     [Fact]
@@ -281,8 +415,9 @@ public sealed class MainViewModelNavigationTests
 
         vm.ShuffleArtistCommand.Execute(artist);
 
-        Assert.Equal(expectedIds.Count, vm.DisplayedTracks.Count);
-        Assert.Equal(expectedIds, vm.DisplayedTracks.Select(t => t.Id).OrderBy(id => id));
+        // PlaybackQueue — очередь исполнителя; DisplayedTracks (вкладка «Треки») не трогается (bug #5 fix).
+        Assert.Equal(expectedIds.Count, vm.PlaybackQueue.Count);
+        Assert.Equal(expectedIds, vm.PlaybackQueue.Select(t => t.Id).OrderBy(id => id));
     }
 
     // === Фабрика VM и минимальные фейки (скопированы из MainViewModelTagAttachTests, т.к. там private) ===
@@ -322,12 +457,15 @@ public sealed class MainViewModelNavigationTests
         public TimeSpan Duration => TimeSpan.FromSeconds(100);
         public double Volume { get; set; } = 1;
         public bool IsMuted { get; set; }
+        public string? LastOpenedFilePath { get; private set; }
 
-        public OperationResult Open(string filePath) => OperationResult.Success("opened");
+        public OperationResult Open(string filePath) { LastOpenedFilePath = filePath; return OperationResult.Success("opened"); }
         public OperationResult Play() => OperationResult.Success("playing");
         public void Pause() { }
         public void Stop() { }
         public void Dispose() { }
+
+        public void RaiseEndedForTest() => MediaEnded?.Invoke(this, EventArgs.Empty);
     }
 
     private sealed class FakeListeningHistoryRepository : IListeningHistoryRepository
