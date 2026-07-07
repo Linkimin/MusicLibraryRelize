@@ -69,10 +69,10 @@ dotnet test
 ## Сборка релиза
 
 ```powershell
-pwsh scripts/build-release.ps1 -Version 1.0.3
+pwsh scripts/build-release.ps1 -Version 1.0.4
 ```
 
-Скрипт публикует single-file self-contained сборку под win-x64 в `publish\win-x64\` и собирает установщик через Inno Setup в `release\MusicBakh-Setup-1.0.3.exe`. Подробности — в [docs/release-checklist.md](docs/release-checklist.md).
+Скрипт публикует single-file self-contained сборку под win-x64 в `publish\win-x64\` и собирает установщик через Inno Setup в `release\MusicBakh-Setup-1.0.4.exe`. Подробности — в [docs/release-checklist.md](docs/release-checklist.md).
 
 ## Архитектура
 
