@@ -90,6 +90,38 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void SetRatingCommand_Preserves_Year_TrackNumber_AlbumArtist()
+    {
+        // Регрессия: CloneTrack в MainViewModel вручную реконструирует Track
+        // (sealed, init-only свойства, `with` недоступен) и не был обновлён
+        // при добавлении Year/TrackNumber/AlbumArtist в Task 1 итерации D.
+        // В результате простановка рейтинга обнуляла эти поля через Update.
+        var tracks = new[]
+        {
+            new Track
+            {
+                Id = 1,
+                Title = "T",
+                Artist = "A",
+                FilePath = "1.mp3",
+                Year = 1999,
+                TrackNumber = 7,
+                AlbumArtist = "Various Artists"
+            }
+        };
+        var trackRepo = new RecordingTrackRepository(tracks);
+        var viewModel = CreateViewModelWithRepo(trackRepo);
+        viewModel.SelectedTrack = viewModel.DisplayedTracks[0];
+
+        viewModel.SetRatingCommand.Execute("4");
+
+        Assert.Single(trackRepo.UpdateCalls);
+        Assert.Equal(1999, trackRepo.UpdateCalls[0].Year);
+        Assert.Equal(7, trackRepo.UpdateCalls[0].TrackNumber);
+        Assert.Equal("Various Artists", trackRepo.UpdateCalls[0].AlbumArtist);
+    }
+
+    [Fact]
     public void SetRatingCommand_Toggle_Same_Star_Resets_To_Zero()
     {
         var tracks = new[] { new Track { Id = 1, Title = "T", Artist = "A", FilePath = "1.mp3", Rating = 3 } };
@@ -893,6 +925,28 @@ public sealed class MainViewModelTests
         Assert.Equal(TimeSpan.FromSeconds(12), viewModel.CurrentPosition);
     }
 
+    [Fact]
+    public void DisplayedAlbums_And_DisplayedArtists_Recompute_When_Filters_Change()
+    {
+        var tracks = new[]
+        {
+            new Track { Id = 1, Title = "A", Artist = "X", Album = "Q", Genre = "Рок", FilePath = "1.mp3" },
+            new Track { Id = 2, Title = "B", Artist = "X", Album = "Q", Genre = "Рок", FilePath = "2.mp3" },
+            new Track { Id = 3, Title = "C", Artist = "Y", Album = "R", Genre = "Поп", FilePath = "3.mp3" },
+        };
+        var viewModel = CreateViewModel(tracks, new FakeAudioPlayerService(), new FakeFileService());
+
+        // По умолчанию все три → два альбома, два исполнителя.
+        Assert.Equal(2, viewModel.DisplayedAlbums.Count);
+        Assert.Equal(2, viewModel.DisplayedArtists.Count);
+
+        viewModel.SelectedGenre = "Рок";
+        Assert.Single(viewModel.DisplayedAlbums);
+        Assert.Equal("Q", viewModel.DisplayedAlbums[0].Title);
+        Assert.Single(viewModel.DisplayedArtists);
+        Assert.Equal("X", viewModel.DisplayedArtists[0].Name);
+    }
+
     private static MainViewModel CreateViewModel()
     {
         return CreateViewModelWithPlayer().ViewModel;
@@ -1063,9 +1117,12 @@ public sealed class MainViewModelTests
     {
         public PlayerSettings Loaded { get; set; } = PlayerSettings.Default;
         public List<PlayerSettings> SavedSnapshots { get; } = new();
+        public int? SavedActiveViewIndex { get; private set; }
 
         public PlayerSettings Load() => Loaded;
         public void Save(PlayerSettings settings) => SavedSnapshots.Add(settings);
+        public int? LoadActiveViewIndex() => SavedActiveViewIndex;
+        public void SaveActiveView(MainViewMode view) => SavedActiveViewIndex = (int)view;
     }
 
     private sealed class FakeListeningHistoryRepository : IListeningHistoryRepository

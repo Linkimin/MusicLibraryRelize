@@ -12,4 +12,7 @@ public sealed class LocalTagInfo
     public TimeSpan Duration { get; init; }
     public byte[]? CoverBytes { get; init; }
     public string? CoverMimeType { get; init; }
+    public int? Year { get; init; }
+    public int? TrackNumber { get; init; }
+    public string? AlbumArtist { get; init; }
 }

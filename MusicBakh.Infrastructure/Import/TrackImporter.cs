@@ -69,7 +69,10 @@ public sealed class TrackImporter : ITrackImporter
                 Artist = metadata.Artist,
                 Album = metadata.Album,
                 Genre = metadata.Genre,
-                Duration = metadata.Duration
+                Duration = metadata.Duration,
+                Year = metadata.Year,
+                TrackNumber = metadata.TrackNumber,
+                AlbumArtist = metadata.AlbumArtist
             });
         }
         catch (OperationCanceledException)

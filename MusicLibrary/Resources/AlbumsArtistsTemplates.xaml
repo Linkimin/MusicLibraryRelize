@@ -1,0 +1,335 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:converters="clr-namespace:MusicLibrary.Converters">
+
+    <!-- Конвертеры объявлены здесь локально: {StaticResource} внутри DataTemplate этого
+         merged-словаря резолвится при загрузке шаблона и НЕ видит ключей, объявленных прямыми
+         детьми Application.Resources после блока MergedDictionaries (тот же приём, что в
+         TrackTemplates.xaml). Без этого переключение на Albums/Artists падает с
+         XamlParseException «ресурс CountToVisibilityConverter не найден». -->
+    <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
+    <converters:FirstLetterConverter x:Key="FirstLetterConverter" />
+    <!-- Локально (MultiBinding.Converter резолвится при загрузке шаблона): подсветка
+         играющего трека в детали альбома/исполнителя сравнивает трек строки с PlayingTrack. -->
+    <converters:TrackIdentityMatchConverter x:Key="TrackIdentityMatchConverter" />
+
+    <!-- ========== Tracks view: переиспользует существующий ListBox с TrackCardTemplate ========== -->
+    <DataTemplate x:Key="TracksRootTemplate">
+        <ListBox ItemsSource="{Binding DataContext.DisplayedTracks, RelativeSource={RelativeSource AncestorType=Window}}"
+                 SelectedItem="{Binding DataContext.SelectedTrack, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                 ItemTemplate="{StaticResource TrackCardTemplate}"
+                 ItemContainerStyle="{StaticResource TrackListBoxItemStyle}"
+                 Style="{StaticResource PanelListBoxStyle}" />
+    </DataTemplate>
+
+    <!-- ========== Albums view: 3xN сетка плиток ========== -->
+    <!-- ВАЖНО: DataContext этого шаблона — CurrentLeftColumn (LeftColumnState), а не
+         MainViewModel, т.к. ContentControl.Content его переустанавливает. Поэтому
+         OpenAlbumCommand берём через RelativeSource AncestorType=Window (DataContext
+         окна = MainViewModel), а не AncestorType=ItemsControl (там DataContext —
+         сам объект AlbumAggregate/состояние, без нужной команды — молчаливый no-op). -->
+    <DataTemplate x:Key="AlbumTileTemplate">
+        <Border Background="#332A2A3F" BorderBrush="{StaticResource GoldBorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="10" Margin="6" Cursor="Hand">
+            <Border.InputBindings>
+                <MouseBinding MouseAction="LeftClick"
+                              Command="{Binding DataContext.OpenAlbumCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}" />
+            </Border.InputBindings>
+            <StackPanel>
+                <Border Width="130" Height="130" CornerRadius="6">
+                    <Border.Background>
+                        <ImageBrush ImageSource="{Binding CoverPath}" Stretch="UniformToFill" />
+                    </Border.Background>
+                </Border>
+                <TextBlock Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}"
+                           FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"
+                           Margin="0,8,0,2" />
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding Artist}" Foreground="{StaticResource MutedForegroundBrush}"
+                               FontSize="11" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text=" · " Foreground="{StaticResource MutedForegroundBrush}" FontSize="11" />
+                    <TextBlock Text="{Binding Year}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="11" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="AlbumsRootTemplate">
+        <Grid>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding DataContext.DisplayedAlbums, RelativeSource={RelativeSource AncestorType=Window}}"
+                              ItemTemplate="{StaticResource AlbumTileTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="3" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
+            <!-- Empty state: библиотека пуста или всё отфильтровано (спека §Альбомы). -->
+            <TextBlock Text="Альбомов пока нет — добавьте треки с заполненным тегом Album"
+                       Foreground="{StaticResource MutedForegroundBrush}" FontSize="13"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                       TextWrapping="Wrap" MaxWidth="360"
+                       Visibility="{Binding DataContext.DisplayedAlbums.Count, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource CountToVisibilityConverter}, ConverterParameter=Invert}" />
+        </Grid>
+    </DataTemplate>
+
+    <!-- ========== Artists view: вертикальный список ========== -->
+    <!-- См. комментарий у AlbumTileTemplate: OpenArtistCommand — тоже через Window,
+         не через ItemsControl (тот же самый DataContext-трюк ContentControl.Content). -->
+    <DataTemplate x:Key="ArtistRowTemplate">
+        <Border Background="#332A2A3F" BorderBrush="{StaticResource GoldBorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="10" Margin="0,0,0,6" Cursor="Hand">
+            <Border.InputBindings>
+                <MouseBinding MouseAction="LeftClick"
+                              Command="{Binding DataContext.OpenArtistCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}" />
+            </Border.InputBindings>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- Avatar: круг с буквой инициала -->
+                <Border Width="40" Height="40" CornerRadius="20" Background="{StaticResource PrimaryBrush}">
+                    <TextBlock Text="{Binding Name, Converter={StaticResource FirstLetterConverter}}"
+                               Foreground="{StaticResource BackgroundBrush}" FontWeight="SemiBold" FontSize="18"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Margin="12,0,0,0">
+                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource ForegroundBrush}"
+                               FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Foreground="{StaticResource MutedForegroundBrush}" FontSize="11">
+                        <Run Text="{Binding Albums.Count, Mode=OneWay}" />
+                        <Run Text=" альбомов · " />
+                        <Run Text="{Binding TotalTracks, Mode=OneWay}" />
+                        <Run Text=" треков" />
+                    </TextBlock>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="ArtistsRootTemplate">
+        <Grid>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding DataContext.DisplayedArtists, RelativeSource={RelativeSource AncestorType=Window}}"
+                              ItemTemplate="{StaticResource ArtistRowTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
+            <!-- Empty state: библиотека пуста или всё отфильтровано (спека §Исполнители). -->
+            <TextBlock Text="Исполнителей пока нет — добавьте треки с заполненным тегом Artist"
+                       Foreground="{StaticResource MutedForegroundBrush}" FontSize="13"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                       TextWrapping="Wrap" MaxWidth="360"
+                       Visibility="{Binding DataContext.DisplayedArtists.Count, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource CountToVisibilityConverter}, ConverterParameter=Invert}" />
+        </Grid>
+    </DataTemplate>
+
+    <!-- ========== AlbumDetail (внутри drill-down) ========== -->
+    <!-- DataContext этого шаблона — LeftColumnState.AlbumDetail (свойство Album — AlbumAggregate). -->
+    <DataTemplate x:Key="AlbumDetailTemplate">
+        <DockPanel LastChildFill="True">
+            <!-- Back -->
+            <Button DockPanel.Dock="Top" Content="← Все альбомы"
+                    Command="{Binding DataContext.BackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Background="Transparent" BorderThickness="0" Foreground="{StaticResource PrimaryBrush}"
+                    HorizontalAlignment="Left" Padding="8,4" Margin="0,0,0,8" Cursor="Hand" />
+
+            <!-- Header (Album.Cover + Title + Artist + meta) -->
+            <Border DockPanel.Dock="Top" Margin="0,0,0,12">
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="100" Height="100" CornerRadius="8" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="1">
+                        <Border.Background>
+                            <ImageBrush ImageSource="{Binding Album.CoverPath}" Stretch="UniformToFill" />
+                        </Border.Background>
+                    </Border>
+                    <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Album.Title}" Foreground="{StaticResource ForegroundBrush}"
+                                   FontWeight="SemiBold" FontSize="18" />
+                        <TextBlock Text="{Binding Album.Artist}" Foreground="{StaticResource MutedForegroundBrush}"
+                                   FontSize="13" Margin="0,2,0,4" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Album.Year, TargetNullValue='—'}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="11" />
+                            <TextBlock Text=" · " Foreground="{StaticResource MutedForegroundBrush}" FontSize="11" />
+                            <TextBlock Foreground="{StaticResource MutedForegroundBrush}" FontSize="11">
+                                <Run Text="{Binding Album.Tracks.Count, Mode=OneWay}" />
+                                <Run Text=" треков" />
+                            </TextBlock>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Content="▶ Воспроизвести альбом" Style="{StaticResource PrimaryButtonStyle}" Height="40" Padding="16,0" FontSize="13"
+                                    Command="{Binding DataContext.PlayAlbumCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding Album}" />
+                            <Button Content="🔀 Перемешать" Style="{StaticResource SecondaryButtonStyle}" Height="40" Padding="16,0" FontSize="13" Margin="8,0,0,0"
+                                    Command="{Binding DataContext.ShuffleAlbumCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding Album}" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Tracks list (+ empty-state, если активный фильтр не оставил в альбоме ни одного трека). -->
+            <!-- Двойной клик по строке — PlayDetailTrackCommand (bug #4 fix): очередь строится из
+                 Album.Tracks текущей открытой детали, а не из DisplayedTracks (вкладка «Треки»). -->
+            <Grid>
+                <ListBox ItemsSource="{Binding Album.Tracks}"
+                         SelectedItem="{Binding DataContext.SelectedTrack, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                         ItemContainerStyle="{StaticResource TrackListBoxItemStyle}"
+                         Style="{StaticResource PanelListBoxStyle}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid x:Name="AlbumTrackRow" Margin="6,4" Cursor="Hand" Background="Transparent">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="30" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.InputBindings>
+                                    <MouseBinding MouseAction="LeftDoubleClick"
+                                                  Command="{Binding DataContext.PlayDetailTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  CommandParameter="{Binding}" />
+                                </Grid.InputBindings>
+                                <TextBlock Grid.Column="0" Text="{Binding TrackNumber, TargetNullValue=''}"
+                                           Foreground="{StaticResource MutedForegroundBrush}" FontSize="12" />
+                                <TextBlock x:Name="AlbumTrackTitle" Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}"
+                                           FontSize="13" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="2" Text="{Binding DurationText}"
+                                           Foreground="{StaticResource MutedForegroundBrush}" FontSize="11"
+                                           Margin="8,0,0,0" />
+                            </Grid>
+                            <DataTemplate.Triggers>
+                                <!-- Подсветка играющего трека (PlayingTrack берём с окна — DataContext детали = состояние). -->
+                                <DataTrigger Value="True">
+                                    <DataTrigger.Binding>
+                                        <MultiBinding Converter="{StaticResource TrackIdentityMatchConverter}">
+                                            <Binding />
+                                            <Binding RelativeSource="{RelativeSource AncestorType=Window}" Path="DataContext.PlayingTrack" />
+                                        </MultiBinding>
+                                    </DataTrigger.Binding>
+                                    <Setter TargetName="AlbumTrackRow" Property="Background" Value="#402A2018" />
+                                    <Setter TargetName="AlbumTrackTitle" Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                                    <Setter TargetName="AlbumTrackTitle" Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <!-- Спека §Фильтр-семантика: drill-down, опустошённый активным фильтром, показывает
+                     empty-state вместо пустого/stale списка. MainViewModel.ApplyFilters ре-резолвит
+                     Album на «пустой» агрегат (та же identity, Tracks=[]), когда GroupByAlbum больше
+                     не находит альбом под текущим фильтром. -->
+                <TextBlock Text="Под фильтр не попало ни одного трека этого альбома"
+                           Foreground="{StaticResource MutedForegroundBrush}" FontSize="13"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="360"
+                           Visibility="{Binding Album.Tracks.Count, Converter={StaticResource CountToVisibilityConverter}, ConverterParameter=Invert}" />
+            </Grid>
+        </DockPanel>
+    </DataTemplate>
+
+    <!-- ========== ArtistDetail (внутри drill-down) ========== -->
+    <!-- DataContext этого шаблона — LeftColumnState.ArtistDetail (свойство Artist — ArtistAggregate). -->
+    <DataTemplate x:Key="ArtistDetailTemplate">
+        <DockPanel LastChildFill="True">
+            <Button DockPanel.Dock="Top" Content="← Все исполнители"
+                    Command="{Binding DataContext.BackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Background="Transparent" BorderThickness="0" Foreground="{StaticResource PrimaryBrush}"
+                    HorizontalAlignment="Left" Padding="8,4" Margin="0,0,0,8" Cursor="Hand" />
+
+            <Border DockPanel.Dock="Top" Margin="0,0,0,12">
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="70" Height="70" CornerRadius="35" Background="{StaticResource PrimaryBrush}">
+                        <TextBlock Text="{Binding Artist.Name, Converter={StaticResource FirstLetterConverter}}"
+                                   Foreground="{StaticResource BackgroundBrush}" FontWeight="SemiBold" FontSize="28"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Artist.Name}" Foreground="{StaticResource ForegroundBrush}"
+                                   FontWeight="SemiBold" FontSize="18" />
+                        <TextBlock Foreground="{StaticResource MutedForegroundBrush}" FontSize="11" Margin="0,2,0,0">
+                            <Run Text="{Binding Artist.Albums.Count, Mode=OneWay}" />
+                            <Run Text=" альбомов · " />
+                            <Run Text="{Binding Artist.TotalTracks, Mode=OneWay}" />
+                            <Run Text=" треков" />
+                        </TextBlock>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Content="▶ Слушать всё" Style="{StaticResource PrimaryButtonStyle}" Height="40" Padding="16,0" FontSize="13"
+                                    Command="{Binding DataContext.PlayArtistCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding Artist}" />
+                            <Button Content="🔀 Перемешать" Style="{StaticResource SecondaryButtonStyle}" Height="40" Padding="16,0" FontSize="13" Margin="8,0,0,0"
+                                    Command="{Binding DataContext.ShuffleArtistCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding Artist}" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Scrollable content (Albums + LooseTracks) + empty-state, если активный фильтр не
+                 оставил у исполнителя ни одного альбома/трека (см. AlbumDetailTemplate — тот же приём
+                 через MainViewModel.ApplyFilters, ре-резолвящий Artist на «пустой» агрегат). -->
+            <Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Альбомы" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8" />
+                        <ItemsControl ItemsSource="{Binding Artist.Albums}" ItemTemplate="{StaticResource AlbumTileTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="3" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+
+                        <TextBlock Text="Прочие треки" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" FontSize="13" Margin="0,12,0,8"
+                                   Visibility="{Binding Artist.LooseTracks.Count, Converter={StaticResource CountToVisibilityConverter}}" />
+                        <!-- Двойной клик по строке — PlayDetailTrackCommand (bug #4 fix): очередь = Artist.LooseTracks
+                             текущей открытой детали исполнителя, не DisplayedTracks. -->
+                        <ItemsControl ItemsSource="{Binding Artist.LooseTracks}"
+                                      Visibility="{Binding Artist.LooseTracks.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid x:Name="LooseTrackRow" Margin="6,4" Cursor="Hand" Background="Transparent">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.InputBindings>
+                                            <MouseBinding MouseAction="LeftDoubleClick"
+                                                          Command="{Binding DataContext.PlayDetailTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          CommandParameter="{Binding}" />
+                                        </Grid.InputBindings>
+                                        <TextBlock x:Name="LooseTrackTitle" Grid.Column="0" Text="{Binding Title}" Foreground="{StaticResource ForegroundBrush}" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="1" Text="{Binding DurationText}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="11" Margin="8,0,0,0" />
+                                    </Grid>
+                                    <DataTemplate.Triggers>
+                                        <!-- Подсветка играющего трека (см. album-detail: PlayingTrack с окна). -->
+                                        <DataTrigger Value="True">
+                                            <DataTrigger.Binding>
+                                                <MultiBinding Converter="{StaticResource TrackIdentityMatchConverter}">
+                                                    <Binding />
+                                                    <Binding RelativeSource="{RelativeSource AncestorType=Window}" Path="DataContext.PlayingTrack" />
+                                                </MultiBinding>
+                                            </DataTrigger.Binding>
+                                            <Setter TargetName="LooseTrackRow" Property="Background" Value="#402A2018" />
+                                            <Setter TargetName="LooseTrackTitle" Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                                            <Setter TargetName="LooseTrackTitle" Property="FontWeight" Value="SemiBold" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+                <TextBlock Text="Под фильтр не попало ни одного трека этого исполнителя"
+                           Foreground="{StaticResource MutedForegroundBrush}" FontSize="13"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="360"
+                           Visibility="{Binding Artist.TotalTracks, Converter={StaticResource CountToVisibilityConverter}, ConverterParameter=Invert}" />
+            </Grid>
+        </DockPanel>
+    </DataTemplate>
+
+</ResourceDictionary>

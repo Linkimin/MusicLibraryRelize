@@ -52,6 +52,9 @@ public sealed class SqliteTrackRepository : ITrackRepository
             CoverPath = track.CoverPath,
             Rating = track.Rating,
             Reaction = (int)track.Reaction,
+            Year = track.Year,
+            TrackNumber = track.TrackNumber,
+            AlbumArtist = track.AlbumArtist,
             AddedAtUtc = DateTime.UtcNow,
             IsBuiltIn = track.IsBuiltIn
         };
@@ -79,6 +82,9 @@ public sealed class SqliteTrackRepository : ITrackRepository
         entity.CoverPath = track.CoverPath;
         entity.Rating = track.Rating;
         entity.Reaction = (int)track.Reaction;
+        entity.Year = track.Year;
+        entity.TrackNumber = track.TrackNumber;
+        entity.AlbumArtist = track.AlbumArtist;
         entity.IsBuiltIn = track.IsBuiltIn;
         // AddedAtUtc намеренно не трогаем — это «дата добавления в библиотеку», она не
         // должна обнуляться при обновлении полей.
@@ -114,6 +120,9 @@ public sealed class SqliteTrackRepository : ITrackRepository
         CoverPath = e.CoverPath,
         Rating = e.Rating,
         Reaction = (TrackReaction)e.Reaction,
+        Year = e.Year,
+        TrackNumber = e.TrackNumber,
+        AlbumArtist = e.AlbumArtist,
         IsBuiltIn = e.IsBuiltIn
     };
 }

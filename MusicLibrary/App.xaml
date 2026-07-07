@@ -15,9 +15,11 @@
                 <ResourceDictionary Source="Resources/TabStyles.xaml" />
                 <ResourceDictionary Source="Resources/ToolbarStyles.xaml" />
                 <ResourceDictionary Source="Resources/TagChipStyles.xaml" />
+                <ResourceDictionary Source="Resources/MainViewTabsStyles.xaml" />
                 <ResourceDictionary Source="Resources/ListStyles.xaml" />
                 <ResourceDictionary Source="Resources/PlayerIcons.xaml" />
                 <ResourceDictionary Source="Resources/TrackTemplates.xaml" />
+                <ResourceDictionary Source="Resources/AlbumsArtistsTemplates.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <FontFamily x:Key="HeadingFont">Playfair Display, Georgia</FontFamily>

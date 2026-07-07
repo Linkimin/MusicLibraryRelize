@@ -9,4 +9,7 @@ public sealed class ResolvedMetadata
     public TimeSpan Duration { get; init; }
     public byte[]? CoverFromTag { get; init; }
     public string? CoverMimeType { get; init; }
+    public int? Year { get; init; }
+    public int? TrackNumber { get; init; }
+    public string? AlbumArtist { get; init; }
 }

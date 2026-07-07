@@ -15,4 +15,7 @@ public sealed class TrackImportCandidate
     public string Album { get; set; } = string.Empty;
     public string Genre { get; set; } = string.Empty;
     public TimeSpan Duration { get; set; }
+    public int? Year { get; set; }
+    public int? TrackNumber { get; set; }
+    public string? AlbumArtist { get; set; }
 }

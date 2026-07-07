@@ -27,6 +27,15 @@ public sealed class Track
     /// </summary>
     public TrackReaction Reaction { get; init; }
 
+    /// <summary>Год выпуска альбома, опционально (из ID3-тега).</summary>
+    public int? Year { get; init; }
+
+    /// <summary>Позиция трека в альбоме (1-based), опционально (из ID3-тега).</summary>
+    public int? TrackNumber { get; init; }
+
+    /// <summary>Исполнитель альбома — отличается от Artist для compilations (например, «Various Artists»).</summary>
+    public string? AlbumArtist { get; init; }
+
     /// <summary>
     /// Признак встроенного (seed) трека: такие треки нельзя удалять и менять, они
     /// поставляются вместе с приложением. Пользовательские треки имеют IsBuiltIn=false.

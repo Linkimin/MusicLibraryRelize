@@ -213,4 +213,42 @@ public sealed class SqliteTrackRepositoryTests
         Assert.Equal("Built", all[0].Title);
         Assert.Equal("User", all[1].Title);
     }
+
+    [Fact]
+    public void Add_Then_FindById_Preserves_Year_TrackNumber_AlbumArtist()
+    {
+        using var factory = new InMemorySqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+
+        var saved = repo.Add(new Track
+        {
+            Title = "Night Witches",
+            Artist = "Sabaton",
+            Album = "Heroes",
+            FilePath = "1.mp3",
+            Year = 2014,
+            TrackNumber = 1,
+            AlbumArtist = "Sabaton"
+        });
+
+        var loaded = repo.FindById(saved.Id);
+        Assert.NotNull(loaded);
+        Assert.Equal(2014, loaded!.Year);
+        Assert.Equal(1, loaded.TrackNumber);
+        Assert.Equal("Sabaton", loaded.AlbumArtist);
+    }
+
+    [Fact]
+    public void Add_With_Null_New_Fields_Defaults_To_Null()
+    {
+        using var factory = new InMemorySqliteDbContextFactory();
+        var repo = new SqliteTrackRepository(factory.CreateContext);
+
+        var saved = repo.Add(new Track { Title = "X", Artist = "Y", FilePath = "1.mp3" });
+
+        var loaded = repo.FindById(saved.Id);
+        Assert.Null(loaded!.Year);
+        Assert.Null(loaded.TrackNumber);
+        Assert.Null(loaded.AlbumArtist);
+    }
 }

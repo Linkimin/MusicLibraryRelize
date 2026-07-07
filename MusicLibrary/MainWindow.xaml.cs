@@ -25,6 +25,10 @@ public partial class MainWindow : Window
         _viewModel.IsMuted = settings.IsMuted;
         _viewModel.RepeatMode = settings.RepeatMode;
 
+        // Активную вкладку сознательно НЕ восстанавливаем: приложение всегда стартует на
+        // «Треки» (продуктовое решение — предсказуемый дефолт вместо «где был в прошлый раз»).
+        // Персист active_view в KeyValueStore остаётся неиспользуемым — см. scope-deviations §1.0.4.
+
         DataContext = _viewModel;
     }
 
@@ -50,6 +54,18 @@ public partial class MainWindow : Window
             // через биндинг и вернётся к полной библиотеке.
             SearchBox.Clear();
             Keyboard.ClearFocus();
+            e.Handled = true;
+        }
+    }
+
+    private void Window_KeyDown(object sender, KeyEventArgs e)
+    {
+        // Esc на уровне окна — drill-down back, но только если фокус НЕ в строке
+        // поиска: там Esc уже обрабатывается в OnSearchBoxKeyDown (очистка поиска)
+        // и выставляет e.Handled=true, так что сюда событие не дойдёт.
+        if (e.Key == Key.Escape && _viewModel.CanGoBack && !SearchBox.IsKeyboardFocusWithin)
+        {
+            _viewModel.BackCommand.Execute(null);
             e.Handled = true;
         }
     }

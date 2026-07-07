@@ -2,6 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:MusicLibrary.Controls"
+        xmlns:selectors="clr-namespace:MusicLibrary.Selectors"
+        xmlns:domain="clr-namespace:MusicBakh.Core.Domain;assembly=MusicBakh.Core"
         Title="MusicBakh"
         Icon="Assets/Brand/musicbakh.ico"
         Width="1180"
@@ -9,7 +11,8 @@
         MinWidth="980"
         MinHeight="640"
         FontFamily="{StaticResource BodyFont}"
-        Background="{StaticResource BackgroundBrush}">
+        Background="{StaticResource BackgroundBrush}"
+        KeyDown="Window_KeyDown">
     <Window.InputBindings>
         <KeyBinding Key="Space" Command="{Binding PlayPauseCommand}" />
         <!-- Все буквенные хоткеи — с Ctrl, чтобы не блокировать ввод этих букв
@@ -25,6 +28,22 @@
         <KeyBinding Key="Right" Modifiers="Shift"   Command="{Binding SkipForwardCommand}" />
         <KeyBinding Key="Left"  Modifiers="Control" Command="{Binding PreviousTrackCommand}" />
         <KeyBinding Key="Right" Modifiers="Control" Command="{Binding NextTrackCommand}" />
+        <!-- Ctrl+1/2/3 — переключение вкладок Треки/Альбомы/Исполнители (см. MainViewMode). -->
+        <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SwitchViewCommand}">
+            <KeyBinding.CommandParameter>
+                <x:Static Member="domain:MainViewMode.Tracks" />
+            </KeyBinding.CommandParameter>
+        </KeyBinding>
+        <KeyBinding Key="D2" Modifiers="Control" Command="{Binding SwitchViewCommand}">
+            <KeyBinding.CommandParameter>
+                <x:Static Member="domain:MainViewMode.Albums" />
+            </KeyBinding.CommandParameter>
+        </KeyBinding>
+        <KeyBinding Key="D3" Modifiers="Control" Command="{Binding SwitchViewCommand}">
+            <KeyBinding.CommandParameter>
+                <x:Static Member="domain:MainViewMode.Artists" />
+            </KeyBinding.CommandParameter>
+        </KeyBinding>
     </Window.InputBindings>
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Find" Executed="OnFindCommandExecuted" />
@@ -42,7 +61,8 @@
                 <Button DockPanel.Dock="Right" Content="＋ Добавить трек" Command="{Binding AddTrackCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Padding="18,0" />
                 <Button DockPanel.Dock="Right" Content="Статистика" Command="{Binding OpenStatsCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Padding="18,0" Margin="0,0,12,0" ToolTip="Ctrl+T" />
                 <Button DockPanel.Dock="Right" Content="Теги" Command="{Binding OpenTagsCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Padding="18,0" Margin="0,0,12,0" ToolTip="Ctrl+G" />
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Width="54"
                            Height="54"
                            Source="Assets/Brand/musicbakh-logo.png"
@@ -52,6 +72,67 @@
                         <TextBlock Text="MusicBakh" FontFamily="{StaticResource HeadingFont}" Foreground="{StaticResource PrimaryBrush}" FontSize="28" FontWeight="SemiBold" />
                         <TextBlock Text="Музыкальная библиотека" Foreground="{StaticResource MutedForegroundBrush}" FontSize="13" Margin="1,2,0,0" />
                     </StackPanel>
+                </StackPanel>
+
+                <!-- Tabs занимают оставшуюся середину. -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="40,0,40,0">
+                    <Button Content="Треки"
+                            Command="{Binding SwitchViewCommand}">
+                        <Button.CommandParameter>
+                            <x:Static Member="domain:MainViewMode.Tracks" />
+                        </Button.CommandParameter>
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource MainViewTabButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ActiveView}">
+                                        <DataTrigger.Value>
+                                            <x:Static Member="domain:MainViewMode.Tracks" />
+                                        </DataTrigger.Value>
+                                        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Альбомы"
+                            Command="{Binding SwitchViewCommand}">
+                        <Button.CommandParameter>
+                            <x:Static Member="domain:MainViewMode.Albums" />
+                        </Button.CommandParameter>
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource MainViewTabButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ActiveView}">
+                                        <DataTrigger.Value>
+                                            <x:Static Member="domain:MainViewMode.Albums" />
+                                        </DataTrigger.Value>
+                                        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Исполнители"
+                            Command="{Binding SwitchViewCommand}">
+                        <Button.CommandParameter>
+                            <x:Static Member="domain:MainViewMode.Artists" />
+                        </Button.CommandParameter>
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource MainViewTabButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ActiveView}">
+                                        <DataTrigger.Value>
+                                            <x:Static Member="domain:MainViewMode.Artists" />
+                                        </DataTrigger.Value>
+                                        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -211,11 +292,16 @@
 
             <Border Grid.Column="0" Background="#4D16161F" BorderBrush="{StaticResource GoldBorderBrush}" BorderThickness="0,0,1,0">
                 <DockPanel Margin="24">
-                    <ListBox ItemsSource="{Binding DisplayedTracks}"
-                             SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
-                             ItemTemplate="{StaticResource TrackCardTemplate}"
-                             ItemContainerStyle="{StaticResource TrackListBoxItemStyle}"
-                             Style="{StaticResource PanelListBoxStyle}" />
+                    <ContentControl Content="{Binding CurrentLeftColumn}">
+                        <ContentControl.ContentTemplateSelector>
+                            <selectors:LeftColumnTemplateSelector
+                                TracksTemplate="{StaticResource TracksRootTemplate}"
+                                AlbumsTemplate="{StaticResource AlbumsRootTemplate}"
+                                ArtistsTemplate="{StaticResource ArtistsRootTemplate}"
+                                AlbumDetailTemplate="{StaticResource AlbumDetailTemplate}"
+                                ArtistDetailTemplate="{StaticResource ArtistDetailTemplate}" />
+                        </ContentControl.ContentTemplateSelector>
+                    </ContentControl>
                 </DockPanel>
             </Border>
 
@@ -273,23 +359,28 @@
                             </Style>
                         </StackPanel.Resources>
 
+                        <!-- Обложка/название/исполнитель/жанр/длительность биндятся на NowPlayingTrack
+                             (= PlayingTrack ?? SelectedTrack), а не на SelectedTrack напрямую: играющий
+                             трек может не входить в DisplayedTracks (после Play-альбома), тогда TwoWay
+                             SelectedItem-биндинг ListBox-а вкладки «Треки» обнулит SelectedTrack, и эта
+                             панель раньше гасла (bug #6 fix). -->
                         <Border Width="176" Height="176" CornerRadius="16" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="2" HorizontalAlignment="Center">
                             <Border.Background>
-                                <ImageBrush ImageSource="{Binding SelectedTrack.CoverPath}" Stretch="UniformToFill" />
+                                <ImageBrush ImageSource="{Binding NowPlayingTrack.CoverPath}" Stretch="UniformToFill" />
                             </Border.Background>
                             <Border.Effect>
                                 <DropShadowEffect Color="#D4A574" BlurRadius="35" ShadowDepth="0" Opacity="0.22" />
                             </Border.Effect>
                         </Border>
 
-                        <TextBlock Text="{Binding SelectedTrack.Title, TargetNullValue='Выберите трек'}" Foreground="{StaticResource ForegroundBrush}" FontSize="21" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" Margin="0,20,0,6" />
-                        <TextBlock Text="{Binding SelectedTrack.Artist}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="15" TextAlignment="Center" />
+                        <TextBlock Text="{Binding NowPlayingTrack.Title, TargetNullValue='Выберите трек'}" Foreground="{StaticResource ForegroundBrush}" FontSize="21" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" Margin="0,20,0,6" />
+                        <TextBlock Text="{Binding NowPlayingTrack.Artist}" Foreground="{StaticResource MutedForegroundBrush}" FontSize="15" TextAlignment="Center" />
 
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,12">
                             <Border Background="#1AD4A574" BorderBrush="{StaticResource GoldBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12,5">
-                                <TextBlock Text="{Binding SelectedTrack.Genre}" Foreground="{StaticResource PrimaryBrush}" />
+                                <TextBlock Text="{Binding NowPlayingTrack.Genre}" Foreground="{StaticResource PrimaryBrush}" />
                             </Border>
-                            <TextBlock Text="{Binding SelectedTrack.DurationText}" Foreground="{StaticResource MutedForegroundBrush}" Margin="12,5,0,0" />
+                            <TextBlock Text="{Binding NowPlayingTrack.DurationText}" Foreground="{StaticResource MutedForegroundBrush}" Margin="12,5,0,0" />
                         </StackPanel>
 
                         <!-- Рейтинг + реакция: видимы только когда выбран трек. -->

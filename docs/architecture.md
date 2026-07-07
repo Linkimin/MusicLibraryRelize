@@ -1,10 +1,10 @@
 # Архитектура MusicBakh
 
-Документ описывает фактическое устройство приложения по состоянию исходного кода версии 1.0.3 (итерация C эпика «Library 2.0», финальный минор которого выйдет как 1.1.0 после завершения всех патч-итераций).
+Документ описывает фактическое устройство приложения по состоянию исходного кода версии 1.0.4 (итерация D эпика «Library 2.0», финальный минор которого выйдет как 1.1.0 после завершения всех патч-итераций).
 
 ## Обзор
 
-- **Версия:** 1.0.3.
+- **Версия:** 1.0.4.
 - **Платформа:** WPF, .NET 10 (`net10.0-windows` для Presentation; `net10.0` для остальных слоёв), C# 14, nullable enabled, ImplicitUsings.
 - **Проекты:**
   - `MusicBakh.Core` — доменные сущности и абстракции репозиториев.
@@ -12,7 +12,8 @@
   - `MusicBakh.Infrastructure` — реализации: SQLite через EF Core, HTTP-клиенты, файловая система, сидер.
   - `MusicLibrary` — WPF-хост: ViewModels, Views, WPF-привязанные реализации (`MediaPlayerAudioService`, `ProceduralCoverGenerator`), DI-бутстрап.
 - **Ключевые зависимости:**
-  - `Microsoft.EntityFrameworkCore.Sqlite 10.0.8` — ORM и SQLite-провайдер. С 1.0.2 поверх схемы лежит виртуальная FTS5-таблица `TracksFts` (external content) с триггерами синхронизации.
+  - `Microsoft.EntityFrameworkCore.Sqlite 10.0.9` — ORM и SQLite-провайдер (с 1.0.4; ранее 10.0.8). С 1.0.2 поверх схемы лежит виртуальная FTS5-таблица `TracksFts` (external content) с триггерами синхронизации.
+  - `SQLitePCLRaw.bundle_e_sqlite3 3.0.3` — явный пин нативной SQLite (с 1.0.4), закрывает advisory NU1903 / GHSA-2m69-gcr7-jv3q, перекрывая транзитивный 2.1.11.
   - `Microsoft.Extensions.Hosting 10.0.x` — DI-контейнер и host-инфраструктура.
   - `TagLibSharp 2.3.0` — чтение ID3-тегов (с 1.0.2 — включая `tag.Album`).
   - С 1.0.3: новый `ITagRepository` (Core) + `SqliteTagRepository` (Infrastructure) для работы с пользовательскими тегами-ярлыками.
@@ -56,7 +57,8 @@ Presentation и Infrastructure — два независимых конкрет�
 ```
 MusicBakh.Core/
 ├── Domain/
-│   ├── Track.cs                        — доменная модель трека (Title/Artist/Album/Genre/Duration/FilePath/CoverPath/IsBuiltIn/Rating/Reaction)
+│   ├── Track.cs                        — доменная модель трека (Title/Artist/Album/Genre/Duration/FilePath/CoverPath/IsBuiltIn/Rating/Reaction/Year/TrackNumber/AlbumArtist)
+│   ├── MainViewMode.cs                 — enum Tracks/Albums/Artists (с 1.0.4)
 │   ├── Tag.cs                          — доменная модель тега (Id, Name, Color?) — с 1.0.3
 │   ├── TrackReaction.cs                — enum (None/Liked/Disliked) — с 1.0.3
 │   ├── PlaybackEntry.cs                — запись истории воспроизведения
@@ -148,9 +150,14 @@ MusicLibrary/
 │   ├── Covers/ProceduralCoverGenerator.cs    — градиентная заглушка обложки
 │   ├── Library/LibraryFilter.cs              — pure-function фильтрация библиотеки (с 1.0.3)
 │   ├── Library/LibraryFilterCriteria.cs      — record-критерии фильтра (с 1.0.3)
+│   ├── Library/LibraryGroupingService.cs     — pure GroupByAlbum/GroupByArtist (с 1.0.4)
+│   ├── Library/AlbumAggregate.cs             — computed-агрегат альбома (с 1.0.4)
+│   ├── Library/ArtistAggregate.cs            — computed-агрегат исполнителя (с 1.0.4)
+│   ├── Library/LeftColumnState.cs            — состояние левой колонки (drill-down) (с 1.0.4)
 │   ├── Storage/                              — устаревшие JSON-адаптеры (не используются с 1.0.1)
 │   ├── Tracks/CompositeTrackRepository.cs    — объединяет встроенные и пользовательские
 │   └── Files/                               — OpenFileDialogService, SaveFileDialogService
+├── Selectors/LeftColumnTemplateSelector.cs   — выбор DataTemplate по LeftColumnState (с 1.0.4)
 ├── Commands/RelayCommand.cs
 ├── Converters/                         — IValueConverter для XAML (с 1.0.3: RatingToStarsConverter, ReactionToIconConverter, TagsToChipsConverter, MinRatingActiveConverter и др.)
 ├── DependencyInjection/
@@ -197,6 +204,7 @@ SQLite-файл создаётся автоматически при перво�
 | `AddTracksFts` | Виртуальная таблица `TracksFts USING fts5(Title, Artist, Album, Genre, content='Tracks')` + триггеры `Tracks_ai`/`Tracks_ad`/`Tracks_au AFTER UPDATE OF Title,Artist,Album,Genre` + backfill уже существующих треков |
 | `AddTrackRatingAndReaction` | Колонки `Tracks.Rating INTEGER NOT NULL DEFAULT 0` и `Tracks.Reaction INTEGER NOT NULL DEFAULT 0` — с 1.0.3 |
 | `AddTagsAndTrackTags` | Таблица `Tags` (Id, Name, Color) + связующая `TrackTags` (TrackId FK + TagId FK, составной PK, каскадное удаление) — с 1.0.3 |
+| `AddTrackYearNumberAlbumArtist` | Колонки `Tracks.Year INTEGER NULL`, `Tracks.TrackNumber INTEGER NULL`, `Tracks.AlbumArtist TEXT NULL` + индекс на `Year` — с 1.0.4 |
 
 ### Полнотекстовый поиск (FTS5)
 
@@ -257,6 +265,19 @@ Admin-команды для ручной починки индекса (не в�
 - `LibraryFilter.Apply(allTracks, criteria)` — статический метод, возвращает `IReadOnlyList<Track>`. Не имеет побочных эффектов, полностью тестируем без WPF.
 
 `MainViewModel.ApplyFilters()` теперь строит `LibraryFilterCriteria` и делегирует фильтрацию `LibraryFilter.Apply`. Это первый шаг разгрузки ViewModel: в 1.0.4–1.0.8 планируется аналогично вынести Playback, History и Import.
+
+### Альбомы и исполнители (с 1.0.4)
+
+Библиотека показывается в трёх режимах (`MainViewMode`: Tracks/Albums/Artists), переключаемых вкладками в шапке. Альбомы и исполнители — **computed-агрегаты, не first-class сущности БД** (решение зафиксировано в [ADR-0001](adr/0001-album-artist-computed-aggregates.md)): группировка вычисляется на лету из отфильтрованных треков.
+
+- `LibraryGroupingService.GroupByAlbum/GroupByArtist` — pure-функции (`MusicLibrary/Services/Library/`), вызываются в `ApplyFilters()` сразу после `LibraryFilter.Apply`, из того же отфильтрованного списка. Поэтому все фильтры (поиск/жанр/теги/рейтинг/реакция) действуют и на группы.
+- `AlbumAggregate` — ключ группировки `(AlbumArtist ?? Artist, Album)`; так сборники с общим `AlbumArtist` склеиваются в один альбом. `AlbumKey` (identity для drill-down) использует разделитель `U+001F`, чтобы `Artist+Title` не коллизировали. Треки внутри — `TrackNumber ASC NULLS LAST, Title ASC`. `Year` — максимум по трекам.
+- `ArtistAggregate` — ключ `Track.Artist` (не `AlbumArtist`), поэтому исполнитель из сборника виден отдельно. Содержит `Albums` (Year DESC NULLS LAST), `LooseTracks` (треки с пустым `Album`, по `IsNullOrEmpty`) и агрегаты счётчиков/длительности.
+- `DisplayedAlbums`/`DisplayedArtists` — computed-кэш на `MainViewModel`, пересчитывается на каждый `ApplyFilters()`.
+
+Drill-down реализован без отдельных окон: `LeftColumnState` (abstract record: `TracksRoot`/`AlbumsRoot`/`ArtistsRoot`/`AlbumDetail(Album)`/`ArtistDetail(Artist)`) + back-стек в `MainViewModel`. Левая колонка — `ContentControl`, чей `Content = CurrentLeftColumn`, а шаблон выбирает `LeftColumnTemplateSelector` (`MusicLibrary/Selectors/`) из пяти DataTemplates в `Resources/AlbumsArtistsTemplates.xaml`. Команды в детальных шаблонах биндятся к `MainViewModel` через `RelativeSource AncestorType=Window` (внутри `ContentControl` ambient DataContext — сам объект состояния). Переключение вкладки обнуляет стек; асимметрия «Исполнитель→Альбом→Back → на исполнителя» достигается порядком push в стеке.
+
+Play/Shuffle: `PlayAlbumCommand`/`PlayArtistCommand` заменяют `DisplayedTracks` собранной очередью и стартуют первый трек через существующий `StartOrResumeTrack`; `Shuffle*` — тот же набор в порядке Fisher-Yates. Стиль вкладок — `Resources/MainViewTabsStyles.xaml`.
 
 ### Горизонтальный фильтр-toolbar и OverflowChipPanel (с 1.0.3)
 
@@ -391,7 +412,7 @@ SelectedTrack ─── PlayPauseCommand ──▶ MediaPlayerAudioService.Open(
 
 ## Тестирование
 
-Единственный тестовый проект — `MusicLibrary.Tests` (xUnit). По состоянию версии 1.0.3: **213 тестов** в обычном прогоне + **1 бенчмарк** под трейтом `Category=Benchmark`.
+Единственный тестовый проект — `MusicLibrary.Tests` (xUnit). По состоянию версии 1.0.4: **242 теста** в обычном прогоне + **1 бенчмарк** под трейтом `Category=Benchmark`.
 
 - **SQLite-репозитории** (`SqliteTrackRepositoryTests`, `SqliteListeningHistoryRepositoryTests`, `SqlitePlayerSettingsRepositoryTests`) — работают поверх in-memory SQLite через [`InMemorySqliteDbContextFactory`](../MusicLibrary.Tests/TestSupport/InMemorySqliteDbContextFactory.cs) (`EnsureCreated` — обходит raw-SQL миграции).
 - **FTS5-поиск** (`SqliteFtsSearchServiceTests`, `FtsQueryBuilderTests`) — `FtsQueryBuilder` юнит-тестируется напрямую; интеграционные тесты `SqliteFtsSearchService` работают поверх [`MigratedSqliteDbContextFactory`](../MusicLibrary.Tests/TestSupport/MigratedSqliteDbContextFactory.cs), которая зовёт `Database.Migrate()` — единственный способ прогнать raw-SQL миграции (виртуальная таблица + триггеры) в тестах.

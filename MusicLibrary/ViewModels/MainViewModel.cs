@@ -42,6 +42,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private string _searchText = string.Empty;
     private int _minRating;
     private TrackReaction? _reactionFilter;
+    private MainViewMode _activeView = MainViewMode.Tracks;
+    private IReadOnlyList<AlbumAggregate> _displayedAlbums = Array.Empty<AlbumAggregate>();
+    private IReadOnlyList<ArtistAggregate> _displayedArtists = Array.Empty<ArtistAggregate>();
     private readonly Dictionary<int, ObservableCollection<Tag>> _tagsByTrackId = new();
     private readonly ObservableCollection<int> _selectedTagIds = new();
     private readonly ObservableCollection<TagFilterItem> _tagFilters = new();
@@ -58,6 +61,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private double _volume = 1.0;
     private bool _isMuted;
     private bool _isSeeking;
+    private readonly Stack<LeftColumnState> _navStack = new();
+    private LeftColumnState _currentLeftColumn = new LeftColumnState.TracksRoot();
+    private static readonly System.Random _shuffleRng = new();
+
+    // Очередь воспроизведения — ОТДЕЛЬНА от DisplayedTracks (вкладка «Треки»).
+    // PlayAlbum/PlayArtist/PlayDetailTrack заполняют её треками альбома/исполнителя, не трогая
+    // список вкладки «Треки». Обычное воспроизведение из вкладки «Треки» (PlayOrPause/PlaySpecificTrack/
+    // history replay) снимает снимок текущего DisplayedTracks в очередь — так next/prev продолжают
+    // ходить по видимой библиотеке, как и раньше. См. docs/superpowers/plans (smoke-fix Task «playback queue»).
+    private List<Track> _playbackQueue = new();
 
     public MainViewModel(
         ITrackRepository trackRepository,
@@ -100,6 +113,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         DisplayedTracks = new ObservableCollection<Track>(_allTracks);
+        // Начальные агрегаты считаем от полного списка треков (фильтров ещё нет).
+        DisplayedAlbums = LibraryGroupingService.GroupByAlbum(_allTracks);
+        DisplayedArtists = LibraryGroupingService.GroupByArtist(_allTracks);
         PlaybackHistory = new ObservableCollection<PlaybackEntry>();
         Genres = new ObservableCollection<string>(
             new[] { AllGenres }
@@ -184,6 +200,90 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         CycleRepeatModeCommand = new RelayCommand(_ => CycleRepeatMode());
         SeekToCommand = new RelayCommand(parameter => SeekTo(parameter as TimeSpan?), _ => PlayingTrack is not null);
 
+        // Навигация левой колонки: SwitchView сбрасывает back-стек и переустанавливает корень,
+        // OpenAlbum/OpenArtist пушат текущее состояние перед drill-down, Back — снимает верхнее.
+        SwitchViewCommand = new RelayCommand(p =>
+        {
+            if (p is not MainViewMode mode) return;
+            ActiveView = mode;
+            _navStack.Clear();
+            CurrentLeftColumn = mode switch
+            {
+                MainViewMode.Tracks => new LeftColumnState.TracksRoot(),
+                MainViewMode.Albums => new LeftColumnState.AlbumsRoot(),
+                MainViewMode.Artists => new LeftColumnState.ArtistsRoot(),
+                _ => new LeftColumnState.TracksRoot()
+            };
+            OnPropertyChanged(nameof(CanGoBack));
+        });
+
+        OpenAlbumCommand = new RelayCommand(p =>
+        {
+            if (p is not AlbumAggregate album) return;
+            _navStack.Push(_currentLeftColumn);
+            CurrentLeftColumn = new LeftColumnState.AlbumDetail(album);
+            OnPropertyChanged(nameof(CanGoBack));
+        });
+
+        OpenArtistCommand = new RelayCommand(p =>
+        {
+            if (p is not ArtistAggregate artist) return;
+            _navStack.Push(_currentLeftColumn);
+            CurrentLeftColumn = new LeftColumnState.ArtistDetail(artist);
+            OnPropertyChanged(nameof(CanGoBack));
+        });
+
+        BackCommand = new RelayCommand(_ =>
+        {
+            if (_navStack.Count == 0) return;
+            CurrentLeftColumn = _navStack.Pop();
+            OnPropertyChanged(nameof(CanGoBack));
+        }, _ => _navStack.Count > 0);
+
+        PlayAlbumCommand = new RelayCommand(p =>
+        {
+            if (p is not AlbumAggregate album || album.Tracks.Count == 0) return;
+            ReplaceQueueAndPlay(album.Tracks, shuffle: false);
+        });
+
+        ShuffleAlbumCommand = new RelayCommand(p =>
+        {
+            if (p is not AlbumAggregate album || album.Tracks.Count == 0) return;
+            ReplaceQueueAndPlay(album.Tracks, shuffle: true);
+        });
+
+        PlayArtistCommand = new RelayCommand(p =>
+        {
+            if (p is not ArtistAggregate artist) return;
+            var all = artist.Albums.SelectMany(a => a.Tracks).Concat(artist.LooseTracks).ToList();
+            if (all.Count == 0) return;
+            ReplaceQueueAndPlay(all, shuffle: false);
+        });
+
+        ShuffleArtistCommand = new RelayCommand(p =>
+        {
+            if (p is not ArtistAggregate artist) return;
+            var all = artist.Albums.SelectMany(a => a.Tracks).Concat(artist.LooseTracks).ToList();
+            if (all.Count == 0) return;
+            ReplaceQueueAndPlay(all, shuffle: true);
+        });
+
+        // Воспроизведение трека, кликнутого прямо на detail-странице альбома/исполнителя (bug #4).
+        // Очередь строится из треклиста ИМЕННО той детали, что сейчас открыта в CurrentLeftColumn —
+        // не из DisplayedTracks (которая продолжает показывать вкладку «Треки»).
+        PlayDetailTrackCommand = new RelayCommand(p =>
+        {
+            if (p is not Track track) return;
+            IReadOnlyList<Track>? queueSource = _currentLeftColumn switch
+            {
+                LeftColumnState.AlbumDetail albumDetail => albumDetail.Album.Tracks,
+                LeftColumnState.ArtistDetail artistDetail => artistDetail.Artist.LooseTracks,
+                _ => null
+            };
+            if (queueSource is null || queueSource.Count == 0) return;
+            ReplaceQueueAndPlay(queueSource, shuffle: false, selectedTrack: track);
+        });
+
         _audioPlayerService.MediaOpened += (_, filePath) => HandleMediaOpened(filePath);
         _audioPlayerService.MediaEnded += (_, _) => HandleMediaEnded();
         _audioPlayerService.MediaFailed += (_, message) => HandleMediaFailed(message);
@@ -195,6 +295,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ObservableCollection<Track> DisplayedTracks { get; }
     public ObservableCollection<string> Genres { get; }
     public ObservableCollection<PlaybackEntry> PlaybackHistory { get; }
+
+    /// <summary>
+    /// Текущая очередь воспроизведения (read-only снимок для тестов/диагностики).
+    /// Заполняется ReplaceQueueAndPlay (альбом/исполнитель/detail-трек) или снимком
+    /// DisplayedTracks при обычном воспроизведении из вкладки «Треки». next/prev и
+    /// auto-advance по завершении трека ходят по ней, а не по DisplayedTracks.
+    /// </summary>
+    public IReadOnlyList<Track> PlaybackQueue => _playbackQueue;
 
     public ICommand PlayPauseCommand { get; }
     public ICommand StopCommand { get; }
@@ -214,6 +322,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand SetMinRatingCommand { get; }
     public ICommand AttachTagToSelectedCommand { get; }
     public ICommand DetachTagFromSelectedCommand { get; }
+    public ICommand SwitchViewCommand { get; }
+    public ICommand OpenAlbumCommand { get; }
+    public ICommand OpenArtistCommand { get; }
+    public ICommand BackCommand { get; }
+    public ICommand PlayAlbumCommand { get; }
+    public ICommand ShuffleAlbumCommand { get; }
+    public ICommand PlayArtistCommand { get; }
+    public ICommand ShuffleArtistCommand { get; }
+    public ICommand PlayDetailTrackCommand { get; }
 
     /// <summary>Кэш тегов по треку. XAML-конвертер использует его для отображения чипов на карточке трека.</summary>
     public IReadOnlyDictionary<int, ObservableCollection<Tag>> TagsByTrackId => _tagsByTrackId;
@@ -308,6 +425,67 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Идентификаторы тегов, активных в фильтре (OR-семантика). UI добавляет/удаляет через эту коллекцию.</summary>
     public ObservableCollection<int> SelectedTagIds => _selectedTagIds;
 
+    /// <summary>Активный режим левой колонки (треки/альбомы/исполнители). Persisted в KeyValueStore.</summary>
+    public MainViewMode ActiveView
+    {
+        get => _activeView;
+        set
+        {
+            if (SetProperty(ref _activeView, value))
+            {
+                _playerSettingsRepository?.SaveActiveView(value);
+            }
+        }
+    }
+
+    /// <summary>Computed-проекция отфильтрованных треков по альбомам (см. LibraryGroupingService). Пересчитывается в ApplyFilters.</summary>
+    public IReadOnlyList<AlbumAggregate> DisplayedAlbums
+    {
+        get => _displayedAlbums;
+        private set
+        {
+            if (!ReferenceEquals(_displayedAlbums, value))
+            {
+                _displayedAlbums = value;
+                OnPropertyChanged(nameof(DisplayedAlbums));
+            }
+        }
+    }
+
+    /// <summary>Computed-проекция отфильтрованных треков по исполнителям (см. LibraryGroupingService). Пересчитывается в ApplyFilters.</summary>
+    public IReadOnlyList<ArtistAggregate> DisplayedArtists
+    {
+        get => _displayedArtists;
+        private set
+        {
+            if (!ReferenceEquals(_displayedArtists, value))
+            {
+                _displayedArtists = value;
+                OnPropertyChanged(nameof(DisplayedArtists));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Текущее состояние левой колонки (drill-down: root/album-detail/artist-detail).
+    /// Меняется командами SwitchView/OpenAlbum/OpenArtist/Back.
+    /// </summary>
+    public LeftColumnState CurrentLeftColumn
+    {
+        get => _currentLeftColumn;
+        private set
+        {
+            if (!Equals(_currentLeftColumn, value))
+            {
+                _currentLeftColumn = value;
+                OnPropertyChanged(nameof(CurrentLeftColumn));
+            }
+        }
+    }
+
+    /// <summary>Есть ли куда возвращаться по Back (back-стек непуст).</summary>
+    public bool CanGoBack => _navStack.Count > 0;
+
     public Track? SelectedTrack
     {
         get => _selectedTrack;
@@ -322,6 +500,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(OtherPlayingText));
                 OnPropertyChanged(nameof(CanDeleteSelected));
                 OnPropertyChanged(nameof(AvailableTagsForAttach));
+                // NowPlayingTrack падает обратно на SelectedTrack, когда ничего не играет —
+                // поэтому смена выделения тоже должна перерисовать обложку/название в средней панели.
+                OnPropertyChanged(nameof(NowPlayingTrack));
+                OnPropertyChanged(nameof(HasNowPlayingTrack));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -338,10 +520,24 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(PlayPauseText));
                 OnPropertyChanged(nameof(ShowOtherPlayingBadge));
                 OnPropertyChanged(nameof(OtherPlayingText));
+                OnPropertyChanged(nameof(NowPlayingTrack));
+                OnPropertyChanged(nameof(HasNowPlayingTrack));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
     }
+
+    /// <summary>
+    /// Трек для отображения в средней «now playing» панели (обложка/название/исполнитель/жанр/
+    /// длительность). Приоритет — играющий трек: он может не входить в текущий DisplayedTracks
+    /// (например, после Play-альбома), и тогда WPF-биндинг ListBox.SelectedItem (TwoWay) обнулит
+    /// SelectedTrack, потому что элемент ушёл из ItemsSource — сама средняя панель раньше была
+    /// привязана к SelectedTrack и из-за этого гасла (bug #6). Если ничего не играет — падаем на
+    /// SelectedTrack, чтобы клик по треку в списке по-прежнему показывал его карточку до старта плеера.
+    /// </summary>
+    public Track? NowPlayingTrack => PlayingTrack ?? SelectedTrack;
+
+    public bool HasNowPlayingTrack => NowPlayingTrack is not null;
 
     public bool HasSelectedTrack => SelectedTrack is not null;
 
@@ -492,7 +688,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Duration = candidate.Duration,
             FilePath = candidate.AudioFilePath,
             CoverPath = candidate.CoverFilePath,
-            IsBuiltIn = false
+            IsBuiltIn = false,
+            Year = candidate.Year,
+            TrackNumber = candidate.TrackNumber,
+            AlbumArtist = candidate.AlbumArtist
         });
 
         AddTrack(saved);
@@ -591,7 +790,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         CoverPath = source.CoverPath,
         Rating = rating ?? source.Rating,
         Reaction = reaction ?? source.Reaction,
-        IsBuiltIn = source.IsBuiltIn
+        IsBuiltIn = source.IsBuiltIn,
+        Year = source.Year,
+        TrackNumber = source.TrackNumber,
+        AlbumArtist = source.AlbumArtist
     };
 
     private void UpdateSelectedTrack(Track updated)
@@ -755,7 +957,48 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             DisplayedTracks.Add(track);
         }
+
+        // Computed-агрегаты пересчитываются вместе с DisplayedTracks. На 50k треков ~50ms.
+        var filteredSnapshot = DisplayedTracks.ToList();
+        DisplayedAlbums = LibraryGroupingService.GroupByAlbum(filteredSnapshot);
+        DisplayedArtists = LibraryGroupingService.GroupByArtist(filteredSnapshot);
+
+        // Спека «Фильтр-семантика»: drill-down обязан уважать активные фильтры. Если пользователь
+        // сейчас смотрит детальную страницу альбома/исполнителя, переустанавливаем CurrentLeftColumn
+        // на свежий агрегат из только что пересчитанных DisplayedAlbums/DisplayedArtists — иначе
+        // деталь продолжит показывать треклист, снятый ДО смены фильтра. Root-состояния и back-стек
+        // не трогаем (ре-резолвим только видимую CurrentLeftColumn).
+        CurrentLeftColumn = _currentLeftColumn switch
+        {
+            LeftColumnState.AlbumDetail albumDetail => new LeftColumnState.AlbumDetail(
+                DisplayedAlbums.FirstOrDefault(a => a.AlbumKey == albumDetail.Album.AlbumKey)
+                    ?? EmptyAlbum(albumDetail.Album)),
+            LeftColumnState.ArtistDetail artistDetail => new LeftColumnState.ArtistDetail(
+                DisplayedArtists.FirstOrDefault(a => a.Name == artistDetail.Artist.Name)
+                    ?? EmptyArtist(artistDetail.Artist)),
+            _ => _currentLeftColumn
+        };
     }
+
+    /// <summary>
+    /// Строит «пустой» агрегат альбома, сохраняя identity (Title/Artist/Year/Cover) от последнего
+    /// известного состояния, но с пустым треклистом. Используется, когда активный фильтр убрал из
+    /// альбома все треки и GroupByAlbum его больше не возвращает — деталь-страница должна показать
+    /// header + empty-state, а не застрявший до-фильтра треклист.
+    /// </summary>
+    private static AlbumAggregate EmptyAlbum(AlbumAggregate previous) => previous with
+    {
+        Tracks = Array.Empty<Track>()
+    };
+
+    /// <summary>Аналог EmptyAlbum для исполнителя: сохраняет Name, обнуляет Albums/LooseTracks/счётчики.</summary>
+    private static ArtistAggregate EmptyArtist(ArtistAggregate previous) => previous with
+    {
+        Albums = Array.Empty<AlbumAggregate>(),
+        LooseTracks = Array.Empty<Track>(),
+        TotalTracks = 0,
+        TotalDuration = TimeSpan.Zero
+    };
 
     private void SkipBy(TimeSpan delta)
     {
@@ -776,7 +1019,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private bool CanGoToOffset(int offset)
     {
-        if (PlayingTrack is null || DisplayedTracks.Count == 0)
+        if (PlayingTrack is null || _playbackQueue.Count == 0)
         {
             return false;
         }
@@ -788,7 +1031,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         int target = index + offset;
-        return target >= 0 && target < DisplayedTracks.Count;
+        return target >= 0 && target < _playbackQueue.Count;
     }
 
     private void GoToTrackByOffset(int offset)
@@ -805,16 +1048,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         int target = index + offset;
-        if (target < 0 || target >= DisplayedTracks.Count)
+        if (target < 0 || target >= _playbackQueue.Count)
         {
             return;
         }
 
-        Track next = DisplayedTracks[target];
+        Track next = _playbackQueue[target];
         SelectedTrack = next;
         StartOrResumeTrack(next);
     }
 
+    // Ищет играющий трек В ОЧЕРЕДИ ВОСПРОИЗВЕДЕНИЯ (_playbackQueue), а не в DisplayedTracks —
+    // иначе next/prev после Play-альбома ходили бы по вкладке «Треки», а не по треклисту альбома.
     private int IndexOfPlayingTrack()
     {
         if (PlayingTrack is null)
@@ -822,9 +1067,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return -1;
         }
 
-        for (int i = 0; i < DisplayedTracks.Count; i++)
+        for (int i = 0; i < _playbackQueue.Count; i++)
         {
-            if (DisplayedTracks[i].Id == PlayingTrack.Id)
+            if (_playbackQueue[i].Id == PlayingTrack.Id)
             {
                 return i;
             }
@@ -860,7 +1105,44 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        // Воспроизведение, начатое из вкладки «Треки» (Play/Pause на выбранном треке), ходит по
+        // текущей отфильтрованной библиотеке — снимаем её снимок в очередь (bug #5 fix).
+        _playbackQueue = DisplayedTracks.ToList();
         StartOrResumeTrack(SelectedTrack);
+    }
+
+    /// <summary>
+    /// Заполняет _playbackQueue треками альбома/исполнителя/detail-выбора и запускает воспроизведение.
+    /// НЕ трогает DisplayedTracks — вкладка «Треки» остаётся отфильтрованной библиотекой (bug #5).
+    /// </summary>
+    /// <param name="selectedTrack">
+    /// Трек, с которого нужно начать (клик по конкретной строке в detail-списке). Если null — играем
+    /// с начала очереди (после шаффла — с получившегося первого элемента), как раньше делал PlayAlbum/PlayArtist.
+    /// </param>
+    private void ReplaceQueueAndPlay(System.Collections.Generic.IReadOnlyList<Track> tracks, bool shuffle, Track? selectedTrack = null)
+    {
+        var queue = tracks.ToList();
+        if (shuffle)
+        {
+            // Fisher-Yates на копии.
+            for (int i = queue.Count - 1; i > 0; i--)
+            {
+                int j = _shuffleRng.Next(i + 1);
+                (queue[i], queue[j]) = (queue[j], queue[i]);
+            }
+        }
+
+        _playbackQueue = queue;
+
+        Track start = selectedTrack is not null
+            ? queue.FirstOrDefault(t => t.Id == selectedTrack.Id) ?? queue[0]
+            : queue[0];
+
+        SelectedTrack = start;
+        // Не через PlayPauseCommand/PlayOrPause: тот безусловно переснимает _playbackQueue из
+        // DisplayedTracks (нормальный сценарий воспроизведения из вкладки «Треки»), что затёрло бы
+        // только что собранную очередь альбома/исполнителя. Здесь очередь уже собрана — просто играем.
+        StartOrResumeTrack(start);
     }
 
     private void PlaySpecificTrack(Track? track)
@@ -877,6 +1159,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        // Двойной клик по треку в вкладке «Треки» (или replay истории) — очередь = снимок
+        // текущей отфильтрованной библиотеки, чтобы next/prev продолжили по ней (bug #5 fix).
+        _playbackQueue = DisplayedTracks.ToList();
         StartOrResumeTrack(track);
     }
 
@@ -1074,7 +1359,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        Track? next = ResolveStrategy(RepeatMode).GetNext(finished, DisplayedTracks);
+        // Авто-переход по завершении трека ходит по очереди воспроизведения (_playbackQueue),
+        // не по DisplayedTracks — иначе после Play-альбома auto-next перескочил бы в вкладку «Треки».
+        Track? next = ResolveStrategy(RepeatMode).GetNext(finished, _playbackQueue);
         if (next is null)
         {
             PlayingTrack = null;

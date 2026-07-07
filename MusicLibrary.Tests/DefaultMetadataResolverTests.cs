@@ -53,6 +53,29 @@ public sealed class DefaultMetadataResolverTests
         Assert.Equal("Artist", result.Artist);
     }
 
+    [Fact]
+    public async Task ResolveAsync_Propagates_Year_TrackNumber_AlbumArtist()
+    {
+        var resolver = CreateResolver(new LocalTagInfo
+        {
+            Title = "Night Witches",
+            Artist = "Sabaton",
+            Album = "Heroes",
+            Year = 2014,
+            TrackNumber = 1,
+            AlbumArtist = "Sabaton"
+        });
+
+        ResolvedMetadata result = await resolver.ResolveAsync(
+            @"C:\Temp\track.mp3",
+            "Sabaton - Night Witches",
+            CancellationToken.None);
+
+        Assert.Equal(2014, result.Year);
+        Assert.Equal(1, result.TrackNumber);
+        Assert.Equal("Sabaton", result.AlbumArtist);
+    }
+
     private static DefaultMetadataResolver CreateResolver(LocalTagInfo tagInfo)
     {
         return new DefaultMetadataResolver(
