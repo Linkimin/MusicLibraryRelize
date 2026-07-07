@@ -158,10 +158,10 @@
                             </TextBlock>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                            <Button Content="▶ Воспроизвести альбом" Style="{StaticResource PrimaryButtonStyle}" Height="32"
+                            <Button Content="▶ Воспроизвести альбом" Style="{StaticResource PrimaryButtonStyle}" Height="40" Padding="16,0" FontSize="13"
                                     Command="{Binding DataContext.PlayAlbumCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding Album}" />
-                            <Button Content="🔀 Перемешать" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="8,0,0,0"
+                            <Button Content="🔀 Перемешать" Style="{StaticResource SecondaryButtonStyle}" Height="40" Padding="16,0" FontSize="13" Margin="8,0,0,0"
                                     Command="{Binding DataContext.ShuffleAlbumCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding Album}" />
                         </StackPanel>
@@ -173,6 +173,7 @@
             <Grid>
                 <ListBox ItemsSource="{Binding Album.Tracks}"
                          SelectedItem="{Binding DataContext.SelectedTrack, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                         ItemContainerStyle="{StaticResource TrackListBoxItemStyle}"
                          Style="{StaticResource PanelListBoxStyle}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
@@ -232,10 +233,10 @@
                             <Run Text=" треков" />
                         </TextBlock>
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                            <Button Content="▶ Слушать всё" Style="{StaticResource PrimaryButtonStyle}" Height="32"
+                            <Button Content="▶ Слушать всё" Style="{StaticResource PrimaryButtonStyle}" Height="40" Padding="16,0" FontSize="13"
                                     Command="{Binding DataContext.PlayArtistCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding Artist}" />
-                            <Button Content="🔀 Перемешать" Style="{StaticResource SecondaryButtonStyle}" Height="32" Margin="8,0,0,0"
+                            <Button Content="🔀 Перемешать" Style="{StaticResource SecondaryButtonStyle}" Height="40" Padding="16,0" FontSize="13" Margin="8,0,0,0"
                                     Command="{Binding DataContext.ShuffleArtistCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding Artist}" />
                         </StackPanel>
